@@ -2,7 +2,9 @@
 - [x] Verify that the copilot-instructions.md file in the .github directory is created.
 
 - [x] Clarify Project Requirements
-	<!-- User wants to create an agentic solution using ADK in Python. -->
+	<!-- User wants to create an agentic solution using ADK in Python. 
+  
+  -->
 
 - [ ] Scaffold the Project
 	<!--
