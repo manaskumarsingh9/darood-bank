@@ -6,15 +6,24 @@ Input: a JSON file that is a list of entries, each:
     {"date": "24/02/2026", "chant": "DAROOD", "count": 100}
 
 Usage:
-    python aggregate.py extracted.json outputs/<run>/<file-name>
+    python aggregate.py extracted.json outputs/<run>/<file-name> [blocks.jsonl]
 
 Writes summary.txt, summary.csv and (when more than one date is present)
 daily_breakdown.csv into the output directory.
+
+When blocks.jsonl is supplied (recommended), aggregate first runs the reconcile
+gate. If the gate FAILS on a significant discrepancy, NO outputs are written --
+you cannot produce a report from a numerically-inconsistent extraction. On PASS,
+blocks.jsonl, extracted.json and reconcile_report.txt are archived into the run
+directory so the run is reproducible and auditable after the fact.
 """
 import os
 import sys
 import json
+import shutil
 import pandas as pd
+
+import reconcile
 
 # Canonical order for reports. Keep this in sync with the list in CLAUDE.md.
 CHANT_ORDER = [
@@ -97,11 +106,39 @@ def generate_outputs(results_by_date, output_dir):
     print(f"Results saved to {output_dir}")
 
 
-def main():
-    if len(sys.argv) != 3:
-        print("Usage: python aggregate.py <extracted.json> <output_dir>")
+def run_gate_and_archive(extracted_path, blocks_path, output_dir):
+    """Reconcile gate: abort before writing anything on a significant mismatch."""
+    any_diff, significant, report = reconcile.analyze(blocks_path, extracted_path)
+    print(report)
+    if significant:
+        print(f"\nABORTED: reconcile gate FAILED for {extracted_path}. "
+              "No outputs written. Fix the extraction and re-run.")
         sys.exit(1)
-    generate_outputs(load_entries(sys.argv[1]), sys.argv[2])
+
+    # Gate passed -> write reports, then archive the exact inputs used.
+    os.makedirs(output_dir, exist_ok=True)
+    with open(os.path.join(output_dir, "reconcile_report.txt"), "w",
+              encoding="utf-8") as f:
+        f.write(report + "\n")
+    shutil.copy2(blocks_path, os.path.join(output_dir, "blocks.jsonl"))
+    shutil.copy2(extracted_path, os.path.join(output_dir, "extracted.json"))
+
+
+def main():
+    if len(sys.argv) not in (3, 4):
+        print("Usage: python aggregate.py <extracted.json> <output_dir> "
+              "[blocks.jsonl]")
+        sys.exit(1)
+
+    extracted_path, output_dir = sys.argv[1], sys.argv[2]
+
+    if len(sys.argv) == 4:
+        run_gate_and_archive(extracted_path, sys.argv[3], output_dir)
+    else:
+        print("WARNING: no blocks.jsonl passed -- reconcile gate SKIPPED and "
+              "inputs NOT archived. Pass blocks.jsonl as the 3rd argument.")
+
+    generate_outputs(load_entries(extracted_path), output_dir)
 
 
 if __name__ == "__main__":

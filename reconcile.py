@@ -1,5 +1,5 @@
 """
-Deterministic accuracy check (no AI, no API calls).
+Deterministic accuracy check (no AI, no API calls) AND a hard gate.
 
 For each send-date it compares two multisets of numbers:
   * SOURCE: every number found in the raw message bodies for that date, after
@@ -9,12 +9,26 @@ For each send-date it compares two multisets of numbers:
 Anything in SOURCE but not EXTRACTED is a *possible missed count*.
 Anything in EXTRACTED but not in SOURCE is a *possible typo / hallucination*.
 
-Some noise is expected (stray day/month fragments, enumeration markers). The
-point is that any *large, real* count that goes missing will stand out.
+Some noise is expected (stray day/month fragments, enumeration markers), so a
+tiny 3 or 13 showing up here is normal. The gate therefore fails ONLY on
+*significant* discrepancies -- a flagged value at or above SIGNIFICANCE_THRESHOLD
+(default 100, override with env RECONCILE_MIN). That is exactly the class of
+error that inflates a daily total (e.g. a duplicated 2500 or an invented 5000);
+small fragments are reported but do not fail the run.
+
+Exit code:
+    0  -> CLEAN, or only minor sub-threshold fragments (PASS)
+    1  -> at least one significant discrepancy (FAIL) -- do NOT aggregate
+
+NOTE: this gate catches dropped/invented/misdated counts, but NOT chant
+*misidentification* (a real number paired with the wrong chant): moving a number
+from one chant column to another leaves the per-date number multiset unchanged.
+For that, use a verifier subagent.
 
 Usage:
-    python reconcile.py blocks.jsonl extracted.json
+    python reconcile.py blocks.jsonl extracted.json [report_out.txt]
 """
+import os
 import sys
 import json
 import re
@@ -28,6 +42,10 @@ DATE_RE = re.compile(r'\d{1,2}\s*[./,=\-]\s*\d{1,2}\s*[./,=\-]\s*\d{2,4}')
 SPACE_DATE_RE = re.compile(r'\b\d{1,2}\s+\d{1,2}\s+20\d\d\b')
 # line-leading list markers: "1.", "03.", "4)"
 LIST_MARKER_RE = re.compile(r'(?m)^\s*\d{1,2}[.)]')
+
+# Discrepancies at or above this magnitude fail the gate; smaller values are
+# treated as expected stray date/enumeration fragments and only warned about.
+SIGNIFICANCE_THRESHOLD = int(os.environ.get("RECONCILE_MIN", "100"))
 
 
 def numbers_in(text):
@@ -46,9 +64,17 @@ def norm_date(envelope_date):
     return envelope_date
 
 
-def main():
-    blocks_path, extracted_path = sys.argv[1], sys.argv[2]
+def _fmt(counter):
+    """Render a Counter of {value: occurrences}, marking significant values."""
+    parts = []
+    for v, c in sorted(counter.items()):
+        mark = "  (!) significant" if v >= SIGNIFICANCE_THRESHOLD else ""
+        parts.append(f"{v}x{c}{mark}")
+    return ", ".join(parts)
 
+
+def analyze(blocks_path, extracted_path):
+    """Return (any_diff, significant, report_str)."""
     source = defaultdict(Counter)
     with open(blocks_path, encoding="utf-8") as f:
         for line in f:
@@ -61,27 +87,64 @@ def main():
         for e in json.load(f):
             extracted[str(e["date"])].update([int(e["count"])])
 
-    clean = True
+    lines = []
+    any_diff = False
+    significant = False
+
     for date in sorted(set(source) | set(extracted)):
         missed = source[date] - extracted[date]   # in source, not extracted
         extra = extracted[date] - source[date]     # extracted, not in source
         if not missed and not extra:
             continue
-        clean = False
-        print(f"\n=== {date} ===")
+        any_diff = True
+        if any(v >= SIGNIFICANCE_THRESHOLD for v in missed) or \
+           any(v >= SIGNIFICANCE_THRESHOLD for v in extra):
+            significant = True
+        lines.append(f"\n=== {date} ===")
         if missed:
-            print("  possible MISSED counts (in message, not extracted):")
-            print("    " + ", ".join(f"{v}x{c}" for v, c in sorted(missed.items())))
+            lines.append("  possible MISSED counts (in message, not extracted):")
+            lines.append("    " + _fmt(missed))
         if extra:
-            print("  possible TYPO/EXTRA counts (extracted, not in message):")
-            print("    " + ", ".join(f"{v}x{c}" for v, c in sorted(extra.items())))
+            lines.append("  possible TYPO/EXTRA counts (extracted, not in message):")
+            lines.append("    " + _fmt(extra))
 
-    if clean:
-        print("CLEAN: every extracted count is backed by a number in the source, "
-              "and no source number is unaccounted for.")
+    if not any_diff:
+        lines.append(
+            "CLEAN: every extracted count is backed by a number in the source, "
+            "and no source number is unaccounted for."
+        )
+    elif significant:
+        lines.append(
+            f"\nFAIL: significant discrepancies (value >= {SIGNIFICANCE_THRESHOLD}, "
+            "marked '(!)') are unaccounted for. A large number in MISSED means a "
+            "real count was dropped; in TYPO/EXTRA means one was invented or "
+            "duplicated. Investigate before aggregating."
+        )
     else:
-        print("\n(Interpret: large/real counts flagged above are worth checking; "
-              "small stray day/month fragments are expected noise.)")
+        lines.append(
+            f"\nPASS: only minor stray fragments (value < {SIGNIFICANCE_THRESHOLD}) "
+            "differ -- expected day/month/enumeration noise, no real count affected."
+        )
+
+    return any_diff, significant, "\n".join(lines)
+
+
+def main():
+    if len(sys.argv) < 3:
+        print("Usage: python reconcile.py <blocks.jsonl> <extracted.json> "
+              "[report_out.txt]")
+        sys.exit(2)
+
+    blocks_path, extracted_path = sys.argv[1], sys.argv[2]
+    report_path = sys.argv[3] if len(sys.argv) > 3 else None
+
+    any_diff, significant, report = analyze(blocks_path, extracted_path)
+    print(report)
+    if report_path:
+        with open(report_path, "w", encoding="utf-8") as f:
+            f.write(report + "\n")
+
+    sys.exit(1 if significant else 0)
 
 
 if __name__ == "__main__":
