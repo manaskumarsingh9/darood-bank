@@ -153,6 +153,22 @@ def test_normalize_miss_returns_none():
     assert normalize.normalize("some brand new chant", lut) is None
 
 
+def test_normalize_urdu_arabic_script():
+    lut = normalize.load_table()
+    darood_sharif = "درود شریف"  # درود شریف
+    assert normalize.normalize(darood_sharif, lut) == "DAROOD"
+    # harakat (diacritics) must not change the match
+    with_harakat = "درُود شریف"
+    assert normalize.normalize(with_harakat, lut) == "DAROOD"
+    # Arabic yeh (ي) and Urdu yeh (ی) must unify
+    arabic_yeh = "درود شريف"
+    assert normalize.normalize(arabic_yeh, lut) == "DAROOD"
+    kalma = "کلمہ شریف"  # کلمہ شریف
+    assert normalize.normalize(kalma, lut) == "KALMA SHARIF"
+    ikhlas = "سورہ اخلاص"  # سورہ اخلاص
+    assert normalize.normalize(ikhlas, lut) == "SURAH IKHLAS"
+
+
 # ------------------------------------------------------- sender templates ----
 def test_template_dot_sender_positional():
     text = ("09.04.2026.sufi.molana.ssb.abid.bhai.300.martba.darood.sharif."

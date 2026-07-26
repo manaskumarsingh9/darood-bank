@@ -1,18 +1,169 @@
 {
-  "DAROOD": ["darood", "durood", "duood", "darud", "daroid", "drood", "darood sharif", "darood shareef", "darood shreef", "darud sharif", "durood sharif", "durood shareef", "daroid sharif", "darood sarif", "duoord sharif", "darood pak", "दरूद", "दरुद", "दुरूद", "दरूद शरीफ", "दरूद शरीफ़", "दुरूद शरीफ", "दरुद शरीफ", "दरूद पाक"],
-  "DAROOD TAJ": ["darood taj", "darude taj", "darood e taj", "darood taj sharif", "duoord taj", "durood taj", "दरूद ताज", "दरूद e ताज"],
-  "Gayatri Mantra": ["gayatri mantra", "gaytri mantra", "shri gayatri mantra", "shri gaytri mantra", "गायत्री मंत्र", "श्री गायत्री मंत्र"],
-  "Guru Mantra": ["guru mantra", "shri guru mantra", "गुरु मंत्र", "श्री गुरु मंत्र"],
-  "KALMA SHARIF": ["kalma sharif", "kalma", "kalima", "pehla kalima", "pehla kalma", "कलमा शरीफ", "कलमा"],
-  "SURAH IKHLAS": ["surah ikhlas", "surah iklas", "sura iklas", "surah ekhlas", "surh ekhlas", "sure ekhlas", "surs iklas", "sur e ikhlas", "surah ekhlash", "इखलास", "सुरह इखलास", "सूरह इखलास", "इकलाख", "सुरह इकलास", "सुरह इकलाख"],
-  "SURAH FATIHA": ["surah fatiha", "sura fatiha", "surh fateha", "sure fateha", "surahfatiya", "सुरह फातिया", "सूरह फातिहा", "सुरहफातिया", "सुरह फातिहा"],
-  "surah mujammil": ["surah mujammil", "surah muzammil", "surah mujjamil"],
-  "AAYTUL KURSI": ["aaytul kursi", "aytal kursi", "ayatul kursi", "aaytalkurshi", "आयतुल कुर्सी", "aytul kursi"],
-  "SIJRA SHARIF": ["sijra sharif", "shijra sharif", "sidra sarif", "sijra", "shijra", "शीजरा शरीफ", "शिज़रा शरीफ", "शिजरा शरीफ", "sidra sharif"],
-  "Astagfar": ["astagfar", "astagfirullah", "toba astagfirullah", "astaghfirullah", "अस्तगफार", "तोबा अस्तगफिरुल्लाह"],
-  "SURAH KAUSER": ["surah kauser", "surh koshar", "sure koshar", "surah kausar"],
-  "surah naas": ["surah naas", "surh nash", "surah nas"],
-  "BISMILLAH SHARIF": ["bismillah", "bismillah sharif", "बिस्मिल्लाह", "बिस्मिल्लाह शरीफ"],
-  "Kulho wallah Sharif": ["kulho wallah sharif", "kulu allah sharif", "kulho allah sharif", "kulhu allah sharif", "kullu allah", "kulhoallah sharif"],
-  "Surah Bakr": ["surah bakr", "surh bakr", "surah baqr"]
+  "DAROOD": [
+    "darood",
+    "durood",
+    "duood",
+    "darud",
+    "daroid",
+    "drood",
+    "darood sharif",
+    "darood shareef",
+    "darood shreef",
+    "darud sharif",
+    "durood sharif",
+    "durood shareef",
+    "daroid sharif",
+    "darood sarif",
+    "duoord sharif",
+    "darood pak",
+    "दरूद",
+    "दरुद",
+    "दुरूद",
+    "दरूद शरीफ",
+    "दरूद शरीफ़",
+    "दुरूद शरीफ",
+    "दरुद शरीफ",
+    "दरूद पाक",
+    "درود",
+    "درود شریف"
+  ],
+  "DAROOD TAJ": [
+    "darood taj",
+    "darude taj",
+    "darood e taj",
+    "darood taj sharif",
+    "duoord taj",
+    "durood taj",
+    "दरूद ताज",
+    "दरूद e ताज",
+    "درود تاج"
+  ],
+  "Gayatri Mantra": [
+    "gayatri mantra",
+    "gaytri mantra",
+    "shri gayatri mantra",
+    "shri gaytri mantra",
+    "गायत्री मंत्र",
+    "श्री गायत्री मंत्र"
+  ],
+  "Guru Mantra": [
+    "guru mantra",
+    "shri guru mantra",
+    "गुरु मंत्र",
+    "श्री गुरु मंत्र"
+  ],
+  "KALMA SHARIF": [
+    "kalma sharif",
+    "kalma",
+    "kalima",
+    "pehla kalima",
+    "pehla kalma",
+    "कलमा शरीफ",
+    "कलमा",
+    "کلمہ",
+    "کلمہ شریف"
+  ],
+  "SURAH IKHLAS": [
+    "surah ikhlas",
+    "surah iklas",
+    "sura iklas",
+    "surah ekhlas",
+    "surh ekhlas",
+    "sure ekhlas",
+    "surs iklas",
+    "sur e ikhlas",
+    "sur ikhlas",
+    "surah ekhlash",
+    "इखलास",
+    "सुरह इखलास",
+    "सूरह इखलास",
+    "इकलाख",
+    "सुरह इकलास",
+    "सुरह इकलाख",
+    "سورہ اخلاص",
+    "اخلاص"
+  ],
+  "SURAH FATIHA": [
+    "surah fatiha",
+    "sura fatiha",
+    "surh fateha",
+    "sure fateha",
+    "surahfatiya",
+    "सुरह फातिया",
+    "सूरह फातिहा",
+    "सुरहफातिया",
+    "सुरह फातिहा",
+    "سورہ فاتحہ",
+    "فاتحہ"
+  ],
+  "surah mujammil": [
+    "surah mujammil",
+    "surah muzammil",
+    "surah mujjamil",
+    "سورہ مزمل"
+  ],
+  "AAYTUL KURSI": [
+    "aaytul kursi",
+    "aytal kursi",
+    "ayatul kursi",
+    "aaytalkurshi",
+    "आयतुल कुर्सी",
+    "aytul kursi"
+  ],
+  "SIJRA SHARIF": [
+    "sijra sharif",
+    "shijra sharif",
+    "sidra sarif",
+    "sijra",
+    "shijra",
+    "शीजरा शरीफ",
+    "शिज़रा शरीफ",
+    "शिजरा शरीफ",
+    "sidra sharif",
+    "شجرہ شریف"
+  ],
+  "Astagfar": [
+    "astagfar",
+    "astagfirullah",
+    "toba astagfirullah",
+    "astaghfirullah",
+    "अस्तगफार",
+    "तोबा अस्तगफिरुल्लाह",
+    "استغفار"
+  ],
+  "SURAH KAUSER": [
+    "surah kauser",
+    "surh koshar",
+    "sure koshar",
+    "surah kausar",
+    "سورہ کوثر"
+  ],
+  "surah naas": [
+    "surah naas",
+    "surh nash",
+    "surah nas",
+    "سورہ ناس",
+    "ناس"
+  ],
+  "BISMILLAH SHARIF": [
+    "bismillah",
+    "bismillah sharif",
+    "बिस्मिल्लाह",
+    "बिस्मिल्लाह शरीफ",
+    "بسم اللہ",
+    "بسم اللہ شریف"
+  ],
+  "Kulho wallah Sharif": [
+    "kulho wallah sharif",
+    "kulu allah sharif",
+    "kulho allah sharif",
+    "kulhu allah sharif",
+    "kullu allah",
+    "kulhoallah sharif"
+  ],
+  "Surah Bakr": [
+    "surah bakr",
+    "surh bakr",
+    "surah baqr"
+  ]
 }
