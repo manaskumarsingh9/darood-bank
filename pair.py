@@ -1,18 +1,26 @@
 """
-Deterministic label<->count pairing via the alternation/elimination rule (no AI).
+Deterministic label<->count pairing via local adjacency (no AI).
 
 After the noise is labelled away, a message is a sequence of chant-labels (L) and
 counts (N). Their order (label-first vs count-first) is NOT fixed across the
-corpus, but it does not need to be assumed: a correctly-labelled stream is
-strictly alternating and balanced, so exactly one direction pairs everything with
-nothing left over. That is the "try both, the wrong one leaves a dangling item"
-idea, stated directly:
+corpus -- and it can even flip partway through the SAME message (a sender writes
+"1400 Bismillah" count-first, then "Sidra sarif 28 baar" label-first two lines
+later). So the direction is decided locally, not once for the whole stream: scan
+left to right, and whenever the current item and its immediate neighbour differ
+in kind (one L, one N), that is an unambiguous pair -- consume both and move on.
 
-  * strictly alternating AND equal #L and #N  -> pair adjacent items; direction
-    is decided by whether the stream starts with a label or a count.
-  * otherwise (two labels or two counts in a row, or unequal counts) -> the
-    stream is ambiguous (a chant with no count, a count with no chant, or a strip
-    error). Route that message to a human; never guess.
+  * every item is claimed this way, two at a time, with nothing left over ->
+    fully paired.
+  * otherwise (two labels or two counts land immediately adjacent once the
+    already-claimed items are skipped, or a single item is left dangling at the
+    end) -> the stream is ambiguous at that point (a chant with no count, a
+    count with no chant, or a real multi-count/multi-label pileup). Route the
+    WHOLE message to a human; never guess, and never return a partial result.
+
+This is a strict superset of "the whole stream must be globally alternating":
+it agrees with that rule whenever the stream IS globally alternating (identical
+pairs, identical direction), and only accepts additional streams where the
+convention flips at a point that is still structurally unambiguous.
 
 Usage:
     python pair.py <classified.jsonl>
@@ -40,19 +48,18 @@ def pair_stream(stream):
         return [], None
 
     kinds = [k for k, _ in stream]
-    alternating = all(kinds[i] != kinds[i + 1] for i in range(len(kinds) - 1))
-    balanced = kinds.count("L") == kinds.count("N")
-    if not (alternating and balanced):
-        return [], (f"non-pairable stream (alternating={alternating}, "
-                    f"balanced={balanced}): {kinds}")
-
     pairs = []
-    if kinds[0] == "L":  # label then count
-        for i in range(0, len(stream), 2):
-            pairs.append((stream[i][1], stream[i + 1][1]))
-    else:  # count then label
-        for i in range(0, len(stream), 2):
-            pairs.append((stream[i + 1][1], stream[i][1]))
+    i, n = 0, len(stream)
+    while i < n:
+        if i + 1 >= n:
+            return [], f"dangling item at position {i} (no partner): {kinds}"
+        k0, v0 = stream[i]
+        k1, v1 = stream[i + 1]
+        if k0 == k1:
+            return [], (f"non-pairable stream at position {i} "
+                        f"(two {k0}s in a row): {kinds}")
+        pairs.append((v0, v1) if k0 == "L" else (v1, v0))
+        i += 2
     return pairs, None
 
 

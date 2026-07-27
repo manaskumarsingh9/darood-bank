@@ -5,13 +5,13 @@
 
   "tokens": {
     "SURAH":   ["surah", "sura", "surh", "sure", "sur", "soorah", "सूरह", "सुरह", "सूराह", "سورہ", "سوره"],
-    "SHARIF":  ["sharif", "shareef", "sharief", "sarif", "shrif", "शरीफ", "शरीफ़", "شریف"],
+    "SHARIF":  ["sharif", "shareef", "sharief", "sarif", "shrif", "शरीफ", "शरीफ़", "सरीफ", "شریف"],
     "DAROOD":  ["darood", "durood", "darud", "duood", "drood", "daroid", "darooth", "daroud", "दरूद", "दरुद", "दुरूद", "درود"],
     "TAJ":     ["taj", "ताज", "تاج"],
     "IBRAHIM": ["ibrahim", "ibraheem", "इब्राहीम", "ابراہیم"],
     "MAHI":    ["mahi", "माही", "ماہی"],
     "KALMA":   ["kalma", "kalima", "kalmah", "कलमा", "کلمہ"],
-    "SIJRA":   ["sijra", "shijra", "sidra", "शीजरा", "शिज़रा", "शिजरा", "شجرہ"],
+    "SIJRA":   ["sijra", "shijra", "sidra", "शीजरा", "शिज़रा", "शिजरा", "सीजरा", "شجرہ"],
     "MANTRA":  ["mantra", "mantar", "मंत्र", "मन्त्र", "منتر"],
     "GAYATRI": ["gayatri", "gaytri", "गायत्री", "گایتری"],
     "GURU":    ["guru", "गुरु"],

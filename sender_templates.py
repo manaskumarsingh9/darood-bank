@@ -16,6 +16,8 @@ A message only uses the template when the number of chant counts it contains
 (after stripping the date) exactly matches the template length; otherwise this
 returns None and the message falls through to the normal labeling path / review.
 """
+import re
+
 import reconcile  # reuse the date-stripping number extractor
 
 # sender (as it appears in blocks `sender`) -> ordered chant per count slot
@@ -29,6 +31,12 @@ SENDER_TEMPLATES = {
 SENDER_COUNT_FIX = {
     "+91 99264 85966": {("SURAH IKHLAS", 50): 500},
 }
+
+# `+91 99264 85966` also sometimes fat-fingers a "0" as a stray adjacent letter
+# INSIDE a count, e.g. "500" -> "5p0" (p sits next to 0 on a QWERTY row). That
+# splits into two numbers under plain digit extraction, so restore it first.
+SENDER_INFIX_LETTER_FIX = {"+91 99264 85966"}
+_INFIX_LETTER_RE = re.compile(r'(?<=\d)[A-Za-z](?=\d)')
 
 
 def is_template_sender(sender):
@@ -46,6 +54,8 @@ def extract(sender, text):
     if template is None:
         return None
 
+    if sender in SENDER_INFIX_LETTER_FIX:
+        text = _INFIX_LETTER_RE.sub('0', text)
     counts = reconcile.numbers_in(text)  # date/list-marker stripped
     if len(counts) != len(template):
         return None  # shape mismatch -> not safe to apply positionally

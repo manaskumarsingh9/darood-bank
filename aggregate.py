@@ -25,18 +25,23 @@ import pandas as pd
 
 import reconcile
 
-# Canonical order for reports. Keep this in sync with the list in CLAUDE.md.
+# Canonical order for reports -- matches the master spreadsheet's column order
+# so totals can be pasted straight across. Keep this in sync with the list in
+# CLAUDE.md. Entries after "Dhyan mulam" have no master-spreadsheet column;
+# they're appended in their prior relative order.
 CHANT_ORDER = [
     "DAROOD", "Gayatri Mantra", "KALMA SHARIF", "SURAH IKHLAS", "SURAH FATIHA",
-    "DAROOD TAJ", "SIJRA SHARIF", "AAYTUL KURSI", "PARA", "QURAN",
-    "AAYTE KARIMA", "DAROOD IBRAHIM", "SURAH KAUSER", "BISMILLAH SHARIF",
-    "surah mujammil", "surah takasur", "surah kaaffiroon", "surah juma",
-    "surah falak", "surah naas", "YASEEN SHARIF", "Astagfar", "Naad-e-Ali",
-    "Ehednama", "Surah Mulk", "Duwaye Kunut", "Maja Mrityunjay mantra",
-    "Surah Rahman", "Surah Fajr", "Dua e Noor", "Darood Mahi", "Surah Yaseen",
-    "Sur e Kahf", "Surah Bakr", "Alhamdu Shareef", "Raksha Strota", "Aman Rasul",
-    "Kulho wallah Sharif", "Sure Juma", "kul sharif", "Surah atah takasur",
-    "Surah Alif Laam",
+    "SIJRA SHARIF", "AAYTUL KURSI", "DAROOD TAJ", "YASEEN SHARIF", "Astagfar",
+    "SURAH KAUSER", "BISMILLAH SHARIF", "Naad-e-Ali", "Sayadul Astagfaar",
+    "Surah Rahman", "Alhamdu Shareef", "surah falak", "PARA", "QURAN",
+    "DAROOD IBRAHIM", "surah mujammil", "surah takasur", "surah juma",
+    "surah kaaffiroon", "Kulho wallah Sharif", "surah naas", "Surah Mulk",
+    "AAYTE KARIMA", "Ehednama", "Kalaam Pak", "Surah Bakr", "Surah Walasri",
+    "Sur e Kahf", "Kul wallahu ahad", "Shukra Alhamdulillah",
+    "Guru bramha Guru Vishnu", "Dhyan mulam",
+    "Duwaye Kunut", "Maja Mrityunjay mantra", "Surah Fajr", "Dua e Noor",
+    "Darood Mahi", "Surah Yaseen", "Raksha Strota", "Aman Rasul",
+    "kul sharif", "Surah atah takasur", "Surah Alif Laam",
 ]
 
 

@@ -43,6 +43,7 @@
     "gaytri mantra",
     "shri gayatri mantra",
     "shri gaytri mantra",
+    "gayatri",
     "गायत्री मंत्र",
     "श्री गायत्री मंत्र"
   ],
@@ -165,5 +166,18 @@
     "surah bakr",
     "surh bakr",
     "surah baqr"
+  ],
+  "Alhamdu Shareef": [
+    "alhamdu shareef",
+    "alhamdo sharif"
+  ],
+  "YASEEN SHARIF": [
+    "yaseen sharif",
+    "यासीन शरीफ",
+    "यासीन सरीफ"
+  ],
+  "Surah Yaseen": [
+    "surah yaseen",
+    "सूरह यासीन"
   ]
 }

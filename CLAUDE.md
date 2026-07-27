@@ -68,6 +68,19 @@ inputs/*.txt
    Never guess a chant identity. If you cannot tell what a phrase is, it stays
    flagged. Re-run step 2 until it exits 0.
 
+   **Confirmed duplicate / superseded send.** Occasionally a genuinely dangling
+   count (see above) turns out, on inspection of the sender's other messages, to
+   be an incomplete send that the same sender re-sent in full moments later
+   (same date, same counts, the missing chant name now present). Forcing the
+   incomplete one to resolve would double-count that day. Do not invent a chant
+   and do not hand-edit `extracted.json`/inputs for this — instead add an entry
+   to `known_duplicates.json`, keyed by exact `(sender, envelope_date, text)`,
+   with a `reason` explaining which other message supersedes it. `build_extracted.py`
+   excludes matching messages up front and logs them as `[INFO] known-duplicate`
+   in `review.txt` (audit trail, does not block the exit-0 gate). Only ever add
+   an entry here when another clean message in the same file fully covers the
+   excluded one's numbers — never to make an unresolved flag disappear.
+
 4. **Reconcile (deterministic per-date number backstop).**
    `python reconcile.py blocks.jsonl extracted.json`
    `build_extracted` already guarantees per-message number integrity; this is the
@@ -126,13 +139,21 @@ resolve a flag, add the variant to `chant_mappings.json` / `compose_rules.json`,
 not here.
 
 ### Canonical chant names
-DAROOD, Gayatri Mantra, KALMA SHARIF, SURAH IKHLAS, SURAH FATIHA, DAROOD TAJ,
-SIJRA SHARIF, AAYTUL KURSI, PARA, QURAN, AAYTE KARIMA, DAROOD IBRAHIM,
-SURAH KAUSER, BISMILLAH SHARIF, surah mujammil, surah takasur, surah kaaffiroon,
-surah juma, surah falak, surah naas, YASEEN SHARIF, Astagfar, Naad-e-Ali,
-Ehednama, Surah Mulk, Duwaye Kunut, Maja Mrityunjay mantra, Surah Rahman,
-Surah Fajr, Dua e Noor, Darood Mahi, Surah Yaseen, Sur e Kahf, Surah Bakr,
-Alhamdu Shareef, Raksha Strota, Aman Rasul, Kulho wallah Sharif, Sure Juma,
+Order matches the master spreadsheet's columns (so report columns line up with
+it); entries from Duwaye Kunut onward have no master-spreadsheet column and are
+appended in their prior relative order.
+
+DAROOD, Gayatri Mantra, KALMA SHARIF, SURAH IKHLAS, SURAH FATIHA,
+SIJRA SHARIF, AAYTUL KURSI, DAROOD TAJ, YASEEN SHARIF, Astagfar,
+SURAH KAUSER, BISMILLAH SHARIF, Naad-e-Ali, Sayadul Astagfaar,
+Surah Rahman, Alhamdu Shareef, surah falak, PARA, QURAN,
+DAROOD IBRAHIM, surah mujammil, surah takasur, surah juma,
+surah kaaffiroon, Kulho wallah Sharif, surah naas, Surah Mulk,
+AAYTE KARIMA, Ehednama, Kalaam Pak, Surah Bakr, Surah Walasri,
+Sur e Kahf, Kul wallahu ahad, Shukra Alhamdulillah,
+Guru bramha Guru Vishnu, Dhyan mulam,
+Duwaye Kunut, Maja Mrityunjay mantra, Surah Fajr, Dua e Noor,
+Darood Mahi, Surah Yaseen, Raksha Strota, Aman Rasul,
 kul sharif, Surah atah takasur, Surah Alif Laam
 
 ### Known mappings (extend as you see new variants)
@@ -173,6 +194,10 @@ model judgment involved. Corrections are scoped to one sender, NOT general rules
   tokens + chant grammar) are the durable normalization stores, seeded from the
   canonical list + known mappings above. Extend *them* when you learn a new
   variant; never hand-edit outputs to fix a spelling.
+- `known_duplicates.json` is the durable store for confirmed duplicate/superseded
+  sends (see step 3 above) — entries are `{sender, envelope_date, text, reason}`,
+  matched exactly. Keep it small; it's an exception list, not a normal resolution
+  path.
 - Keep `CHANT_ORDER` in `aggregate.py` identical to the canonical list above.
 - The deterministic backbone (`segment.py`, `compose.py`, `resolve.py`, `pair.py`,
   `normalize.py`, `sender_templates.py`, `build_extracted.py`) is covered by

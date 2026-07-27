@@ -52,6 +52,8 @@ def _strip_dates(text):
     t = reconcile.MIXED_DATE_RE.sub(" ", text)
     t = reconcile.DATE_RE.sub(" ", t)
     t = reconcile.SPACE_DATE_RE.sub(" ", t)
+    t = reconcile.DINANK_SHORT_DATE_RE.sub(" ", t)
+    t = reconcile.LEADING_SHORT_YEAR_DATE_RE.sub(" ", t)
     t = reconcile.LIST_MARKER_RE.sub(" ", t)  # drop line-leading "1." "03)" enumeration
     return t
 

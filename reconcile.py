@@ -25,6 +25,10 @@ NOTE: this gate catches dropped/invented/misdated counts, but NOT chant
 from one chant column to another leaves the per-date number multiset unchanged.
 For that, use a verifier subagent.
 
+Messages matching known_duplicates.json (see build_extracted.py) are excluded
+from SOURCE entirely, since build_extracted excludes them too -- otherwise this
+gate would always flag a confirmed duplicate's numbers as "missed".
+
 Usage:
     python reconcile.py blocks.jsonl extracted.json [report_out.txt]
 """
@@ -34,12 +38,22 @@ import json
 import re
 from collections import Counter, defaultdict
 
+import duplicates
+import sender_templates
+
 # mixed separator then space before year: "26.2 2026", "27.2 2026"
-MIXED_DATE_RE = re.compile(r'\d{1,2}\s*[./,=\-]\s*\d{1,2}\s+20\d\d')
-# 24.2.26  24/02/2026  24-02-026  24=2=2026  24,2, 26  27 - 02- 26
-DATE_RE = re.compile(r'\d{1,2}\s*[./,=\-]\s*\d{1,2}\s*[./,=\-]\s*\d{2,4}')
+MIXED_DATE_RE = re.compile(r'\d{1,2}\s*[./,=\-]+\s*\d{1,2}\s+20\d\d')
+# 24.2.26  24/02/2026  24-02-026  24=2=2026  24,2, 26  27 - 02- 26  16-03--2026
+DATE_RE = re.compile(r'\d{1,2}\s*[./,=\-]+\s*\d{1,2}\s*[./,=\-]+\s*\d{2,4}')
 # space-separated trailing date like "27 2 2025"
 SPACE_DATE_RE = re.compile(r'\b\d{1,2}\s+\d{1,2}\s+20\d\d\b')
+# "dinank" (=date) keyword immediately followed by a day+year with the month
+# dropped by typo: "dinank 23 2026"
+DINANK_SHORT_DATE_RE = re.compile(r'\bdinank\s+\d{1,2}\s+20\d\d\b', re.IGNORECASE)
+# leading space-separated date with a 2-digit year: "26 3 26". Only anchored
+# at the very start of the message -- a bare number triple is a date prefix
+# there (this sender group's convention), never three unrelated chant counts.
+LEADING_SHORT_YEAR_DATE_RE = re.compile(r'^\s*\d{1,2}\s+\d{1,2}\s+\d{2}\b')
 # line-leading list markers: "1.", "03.", "4)"
 LIST_MARKER_RE = re.compile(r'(?m)^\s*\d{1,2}[.)]')
 
@@ -52,6 +66,8 @@ def numbers_in(text):
     t = MIXED_DATE_RE.sub(' ', text)
     t = DATE_RE.sub(' ', t)
     t = SPACE_DATE_RE.sub(' ', t)
+    t = DINANK_SHORT_DATE_RE.sub(' ', t)
+    t = LEADING_SHORT_YEAR_DATE_RE.sub(' ', t)
     t = LIST_MARKER_RE.sub(' ', t)
     return [int(n) for n in re.findall(r'\d+', t)]
 
@@ -73,14 +89,30 @@ def _fmt(counter):
     return ", ".join(parts)
 
 
-def analyze(blocks_path, extracted_path):
+def analyze(blocks_path, extracted_path, duplicates_path=duplicates.DEFAULT_PATH):
     """Return (any_diff, significant, report_str)."""
+    known_duplicates = duplicates.load(duplicates_path, norm_date=norm_date)
     source = defaultdict(Counter)
     with open(blocks_path, encoding="utf-8") as f:
         for line in f:
             msg = json.loads(line)
             date = norm_date(msg["envelope_date"])
-            source[date].update(numbers_in(msg["text"]))
+            if duplicates.key(msg.get("sender", ""), date, msg.get("text", "")) in known_duplicates:
+                continue
+            sender = msg.get("sender", "")
+            template_entries = None
+            if sender_templates.is_template_sender(sender):
+                template_entries = sender_templates.extract(sender, msg["text"])
+            if template_entries is not None:
+                # A template sender's raw text can carry known OCR/typo count
+                # corruptions (e.g. "500" -> "5p0") that sender_templates
+                # already corrects positionally; comparing against the raw
+                # digits here would flag that correction as a fabricated
+                # number every time it fires. Use its corrected counts instead
+                # -- they ARE what build_extracted wrote for this message.
+                source[date].update(e["count"] for e in template_entries)
+            else:
+                source[date].update(numbers_in(msg["text"]))
 
     extracted = defaultdict(Counter)
     with open(extracted_path, encoding="utf-8") as f:

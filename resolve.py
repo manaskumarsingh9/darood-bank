@@ -58,16 +58,44 @@ def _lookup(text, decisions):
     return compose.match(text)                 # 3. compositional fallback (or None)
 
 
+def _tile(words, decisions):
+    """Try to cover `words` end-to-end with back-to-back known chants and
+    nothing else. Returns the list of canonicals in order, or None if any
+    word is left unconsumed (greedy longest-match-first at each position)."""
+    i, n, out = 0, len(words), []
+    while i < n:
+        for j in range(n, i, -1):
+            canon = _lookup(" ".join(words[i:j]), decisions)
+            if canon:
+                out.append(canon)
+                i = j
+                break
+        else:
+            return None
+    return out
+
+
 def classify(phrase, decisions):
-    """('chant', canonical) | ('drop', None).
+    """Return the list of canonical chants found in `phrase` (possibly empty).
 
     A phrase is usually "<name> <chant>" or "<chant> <name>" with no delimiter,
-    so we extract the chant as the LONGEST contiguous word-subsequence that is a
+    so the default is the LONGEST contiguous word-subsequence that is a
     known chant; the surrounding words are the person's name and are discarded.
     Longest-match makes a real multi-word chant win over a coincidental single
     name-word (e.g. person "Bismillah Bi durood sharif" -> DAROOD, not BISMILLAH).
+
+    But two real chants are sometimes written back-to-back with no number
+    between them ("1400 Bismillah / Sidra sarif 28 baar" -- no count separates
+    the two names). That can only be told apart from the name+chant case by
+    there being NO leftover word once every word is claimed by some chant, so
+    a full end-to-end tiling is tried FIRST; only that unambiguous case yields
+    more than one chant out of a single phrase.
     """
     words = phrase.split()
+    tiled = _tile(words, decisions)
+    if tiled is not None:
+        return tiled
+
     best, best_len = None, 0
     for i in range(len(words)):
         for j in range(len(words), i, -1):
@@ -77,7 +105,7 @@ def classify(phrase, decisions):
             if canon:
                 best, best_len = canon, j - i
                 break
-    return ("chant", best) if best else ("drop", None)
+    return [best] if best else []
 
 
 def resolve_message(rec, decisions):
@@ -88,9 +116,9 @@ def resolve_message(rec, decisions):
         if a["kind"] == "num":
             stream.append(("N", a["value"]))
         else:
-            role, canon = classify(a["text"], decisions)
-            if role == "chant":
-                stream.append(("L", canon))
+            canons = classify(a["text"], decisions)
+            if canons:
+                stream.extend(("L", canon) for canon in canons)
             else:
                 dropped.append(a["text"])
     pairs, err = pair.pair_stream(stream)

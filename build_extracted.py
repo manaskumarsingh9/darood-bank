@@ -25,6 +25,15 @@ Output entries use the existing extractor format so reconcile.py / aggregate.py
 consume them unchanged:
     {"date": "DD/MM/2026", "chant": "<canonical>", "count": <int>}
 
+A message can also be excluded up front via known_duplicates.json: a durable,
+content-addressed (sender, date, exact text) store of messages a human has
+confirmed are a duplicate/incomplete resend already superseded by another
+message in the same file (e.g. a sender resends the complete message moments
+after an incomplete one). These are logged as [INFO], not [HARD] -- they do not
+block the exit code, but stay in review.txt for audit. Only add an entry here
+when a genuinely dangling count's numbers are ALSO fully covered by another,
+clean message -- never to make an unresolved flag disappear.
+
 Usage:
     python build_extracted.py <blocks.jsonl> <extracted.json> [review.txt]
 Exit code: 1 if any HARD review item (needs human/LLM), else 0.
@@ -32,7 +41,8 @@ Exit code: 1 if any HARD review item (needs human/LLM), else 0.
 import sys
 import json
 
-import reconcile          # reuse norm_date for DD/MM -> DD/MM/2026
+import duplicates         # confirmed duplicate/superseded sends (known_duplicates.json)
+import reconcile           # reuse norm_date for DD/MM -> DD/MM/2026
 import resolve            # the deterministic resolver core
 import sender_templates   # per-sender positional templates (deterministic override)
 
@@ -42,15 +52,23 @@ def _load_blocks(blocks_path):
         return [json.loads(line) for line in f if line.strip()]
 
 
-def build(blocks_path, extracted_out, review_out):
+def build(blocks_path, extracted_out, review_out,
+          known_duplicates_path=duplicates.DEFAULT_PATH):
     blocks = _load_blocks(blocks_path)
     decisions = resolve._load_decisions()
+    known_duplicates = duplicates.load(known_duplicates_path, norm_date=reconcile.norm_date)
     entries, review = [], []
 
     for m in blocks:
         mid = m.get("id")
         sender = m.get("sender", "")
         date = reconcile.norm_date(m.get("envelope_date", ""))
+
+        # 0. Confirmed duplicate/superseded send: excluded, logged, not a gate item.
+        dup_reason = known_duplicates.get(duplicates.key(sender, date, m.get("text", "")))
+        if dup_reason is not None:
+            review.append(f"[INFO] known-duplicate: msg {mid}: excluded -- {dup_reason}")
+            continue
 
         # 1. Deterministic per-sender template wins outright for rigid senders.
         if sender_templates.is_template_sender(sender):

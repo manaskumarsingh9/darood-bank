@@ -228,6 +228,48 @@ def test_build_template_sender_positional():
     assert all(e["date"] == "09/03/2026" for e in entries)
 
 
+def test_build_known_duplicate_excluded_not_hard():
+    # a message matching known_duplicates.json (sender+date+exact text) is
+    # dropped silently as [INFO], contributes no entries, and does not
+    # block the exit gate -- unlike a genuine unresolved flag.
+    blocks = [{
+        "id": 88, "envelope_date": "14/03/2026", "sender": "+91 98934 59753",
+        "text": "darud Sharif 121 martba kalma Sharif 121 martba Sur ikhlas 31 "
+                "martba 121 martba",
+    }]
+    with tempfile.TemporaryDirectory() as d:
+        bp = _write_blocks(d, blocks)
+        ep = os.path.join(d, "e.json"); rp = os.path.join(d, "r.txt")
+        dp = os.path.join(d, "dups.json")
+        with open(dp, "w", encoding="utf-8") as f:
+            json.dump([{
+                "sender": "+91 98934 59753", "envelope_date": "14/03/2026",
+                "text": blocks[0]["text"], "reason": "superseded by a resend",
+            }], f)
+        entries, review, hard = build_extracted.build(bp, ep, rp, known_duplicates_path=dp)
+    assert hard == 0, review
+    assert entries == []
+    assert any(r.startswith("[INFO] known-duplicate: msg 88") for r in review), review
+
+
+def test_build_unmatched_duplicate_entry_still_flags():
+    # same message but no matching known_duplicates.json -> still a HARD flag.
+    blocks = [{
+        "id": 88, "envelope_date": "14/03/2026", "sender": "+91 98934 59753",
+        "text": "darud Sharif 121 martba kalma Sharif 121 martba Sur ikhlas 31 "
+                "martba 121 martba",
+    }]
+    with tempfile.TemporaryDirectory() as d:
+        bp = _write_blocks(d, blocks)
+        ep = os.path.join(d, "e.json"); rp = os.path.join(d, "r.txt")
+        dp = os.path.join(d, "dups.json")
+        with open(dp, "w", encoding="utf-8") as f:
+            json.dump([], f)
+        entries, review, hard = build_extracted.build(bp, ep, rp, known_duplicates_path=dp)
+    assert hard == 1, review
+    assert entries == []
+
+
 # ----------------------------------------------------------- compose ----
 def test_compose_multiplicative_coverage():
     # combos never enumerated in any dictionary resolve from token classes.
