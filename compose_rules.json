@@ -1,0 +1,54 @@
+{
+  "_comment": "PROTOTYPE compositional matcher rules. Two parts: `tokens` maps a TOKEN CLASS to its spelling variants (one word each, any script); `chants` maps a canonical chant to an ordered pattern of token classes. A trailing '?' marks an OPTIONAL slot. `drop` lists connective words removed before matching. A phrase resolves only if EVERY word maps to a known class AND the class sequence matches exactly one chant pattern. Store additively here (define 'surah' once), cover multiplicatively (surah x + surah y). Only unambiguous families live here; near-duplicate canonicals (yaseen/juma/takasur variants) are left to exact-match to avoid self-collision.",
+
+  "drop": ["e", "ye"],
+
+  "tokens": {
+    "SURAH":   ["surah", "sura", "surh", "sure", "sur", "soorah", "सूरह", "सुरह", "सूराह", "سورہ", "سوره"],
+    "SHARIF":  ["sharif", "shareef", "sharief", "sarif", "shrif", "शरीफ", "शरीफ़", "شریف"],
+    "DAROOD":  ["darood", "durood", "darud", "duood", "drood", "daroid", "darooth", "daroud", "दरूद", "दरुद", "दुरूद", "درود"],
+    "TAJ":     ["taj", "ताज", "تاج"],
+    "IBRAHIM": ["ibrahim", "ibraheem", "इब्राहीम", "ابراہیم"],
+    "MAHI":    ["mahi", "माही", "ماہی"],
+    "KALMA":   ["kalma", "kalima", "kalmah", "कलमा", "کلمہ"],
+    "SIJRA":   ["sijra", "shijra", "sidra", "शीजरा", "शिज़रा", "शिजरा", "شجرہ"],
+    "MANTRA":  ["mantra", "mantar", "मंत्र", "मन्त्र", "منتر"],
+    "GAYATRI": ["gayatri", "gaytri", "गायत्री", "گایتری"],
+    "GURU":    ["guru", "गुरु"],
+    "IKHLAS":  ["ikhlas", "iklas", "ekhlas", "ekhlash", "iklaas", "इखलास", "इकलाख", "इकलास", "اخلاص"],
+    "FATIHA":  ["fatiha", "fateha", "fatiya", "फातिया", "फातिहा", "فاتحہ"],
+    "KAUSER":  ["kauser", "kausar", "koshar", "kausr", "कौसर", "کوثر"],
+    "NAAS":    ["naas", "nas", "nash", "नास", "ناس"],
+    "MUJAMMIL":["mujammil", "muzammil", "mujjamil", "मुजम्मिल", "مزمل"],
+    "JUMA":    ["juma", "jumma", "जुमा", "جمعہ"],
+    "FALAK":   ["falak", "falaq", "फलक", "فلق"],
+    "MULK":    ["mulk", "मुल्क", "ملک"],
+    "RAHMAN":  ["rahman", "रहमान", "رحمن"],
+    "FAJR":    ["fajr", "फज्र", "فجر"],
+    "KAHF":    ["kahf", "kahaf", "कहफ", "کہف"],
+    "BAKR":    ["bakr", "baqr", "बकर", "بقرہ"]
+  },
+
+  "chants": {
+    "DAROOD":         "DAROOD SHARIF?",
+    "DAROOD TAJ":     "DAROOD TAJ SHARIF?",
+    "DAROOD IBRAHIM": "DAROOD IBRAHIM SHARIF?",
+    "Darood Mahi":    "DAROOD MAHI SHARIF?",
+    "KALMA SHARIF":   "KALMA SHARIF?",
+    "SIJRA SHARIF":   "SIJRA SHARIF?",
+    "Gayatri Mantra": "GAYATRI MANTRA",
+    "Guru Mantra":    "GURU MANTRA",
+    "SURAH IKHLAS":   "SURAH? IKHLAS SHARIF?",
+    "SURAH FATIHA":   "SURAH? FATIHA SHARIF?",
+    "SURAH KAUSER":   "SURAH? KAUSER SHARIF?",
+    "surah naas":     "SURAH? NAAS SHARIF?",
+    "surah mujammil": "SURAH? MUJAMMIL SHARIF?",
+    "surah juma":     "SURAH? JUMA SHARIF?",
+    "surah falak":    "SURAH? FALAK SHARIF?",
+    "Surah Mulk":     "SURAH? MULK SHARIF?",
+    "Surah Rahman":   "SURAH? RAHMAN SHARIF?",
+    "Surah Fajr":     "SURAH? FAJR SHARIF?",
+    "Sur e Kahf":     "SURAH? KAHF SHARIF?",
+    "Surah Bakr":     "SURAH? BAKR SHARIF?"
+  }
+}

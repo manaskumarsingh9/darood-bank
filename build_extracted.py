@@ -1,81 +1,74 @@
 """
-Deterministic driver: classified.jsonl -> extracted.json (+ review.txt). No AI.
+Deterministic driver: blocks.jsonl -> extracted.json (+ review.txt). No AI.
 
-Ties the deterministic backbone together:
-    verify (HARD gate) -> pair (alternation) -> normalize (dictionary lookup)
+This is the promoted pipeline's core builder. It replaces the old per-message
+LLM-labeling step (classified.jsonl): instead of the model tiling every message,
+a deterministic resolver reads each raw message and produces the entries itself.
 
-An entry only reaches extracted.json when its message reconstructs cleanly, its
-numbers reconcile, its label/count stream pairs unambiguously, and its label is
-in the mapping table. Anything else is written to review.txt for a human/LLM --
-never guessed into the totals.
+Per message, in order:
+  1. Per-sender template (sender_templates): rigid-format senders are parsed
+     positionally — the most robust path, so it wins outright.
+  2. Otherwise the deterministic resolver (resolve.resolve_message):
+     segment (numbers as anchors) -> classify each phrase against the exact
+     dictionary (chant_mappings.json) then the compositional matcher
+     (compose_rules.json) -> pair by the alternation rule -> header carry-forward.
+
+An entry only reaches extracted.json when its message resolves unambiguously. A
+message the resolver cannot pair (a dropped/new chant spelling leaves its number
+dangling, a genuinely unattributable count, a template-shape mismatch) is written
+to review.txt as a HARD item and its numbers NEVER enter the totals. That is the
+LLM's remaining, narrow job: resolve each flagged item by extending
+chant_mappings.json / compose_rules.json (its answer is cached, deterministic
+forever after), then re-run until clean.
 
 Output entries use the existing extractor format so reconcile.py / aggregate.py
 consume them unchanged:
     {"date": "DD/MM/2026", "chant": "<canonical>", "count": <int>}
 
 Usage:
-    python build_extracted.py <classified.jsonl> <extracted.json> [review.txt]
-Exit code: 1 if any HARD review item (needs human), else 0.
+    python build_extracted.py <blocks.jsonl> <extracted.json> [review.txt]
+Exit code: 1 if any HARD review item (needs human/LLM), else 0.
 """
 import sys
 import json
 
-import classify_verify
-import pair
-import normalize
-import reconcile  # reuse norm_date for DD/MM -> DD/MM/2026
+import reconcile          # reuse norm_date for DD/MM -> DD/MM/2026
+import resolve            # the deterministic resolver core
+import sender_templates   # per-sender positional templates (deterministic override)
 
 
-def build(classified_path, extracted_out, review_out, blocks_path=None):
-    recs = classify_verify.load(classified_path)
-    review = []
-    entries = []
+def _load_blocks(blocks_path):
+    with open(blocks_path, encoding="utf-8") as f:
+        return [json.loads(line) for line in f if line.strip()]
 
-    # Deterministic per-sender templates (require blocks.jsonl for sender+text).
-    # These override any LLM labeling for those messages — the fixed-shape senders
-    # are parsed positionally, not guessed.
-    template_ids = set()
-    if blocks_path:
-        import sender_templates
-        with open(blocks_path, encoding="utf-8") as f:
-            blocks = {json.loads(l)["id"]: json.loads(l) for l in f if l.strip()}
-        for mid, m in blocks.items():
-            if not sender_templates.is_template_sender(m.get("sender", "")):
-                continue
-            template_ids.add(mid)  # handled deterministically; ignore its LLM record
-            res = sender_templates.extract(m["sender"], m["text"])
+
+def build(blocks_path, extracted_out, review_out):
+    blocks = _load_blocks(blocks_path)
+    decisions = resolve._load_decisions()
+    entries, review = [], []
+
+    for m in blocks:
+        mid = m.get("id")
+        sender = m.get("sender", "")
+        date = reconcile.norm_date(m.get("envelope_date", ""))
+
+        # 1. Deterministic per-sender template wins outright for rigid senders.
+        if sender_templates.is_template_sender(sender):
+            res = sender_templates.extract(sender, m.get("text", ""))
             if res is None:
-                review.append(f"[HARD] template-shape: msg {mid}: sender "
-                              f"{m.get('sender')!r} did not match its template "
-                              "shape -- needs human")
+                review.append(f"[HARD] template-shape: msg {mid}: sender {sender!r} "
+                              "did not match its template shape -- needs human")
                 continue
-            date = reconcile.norm_date(m.get("envelope_date", ""))
             for e in res:
                 entries.append({"date": date, "chant": e["chant"], "count": e["count"]})
-
-    for rec in recs:
-        mid = rec.get("id")
-        if mid in template_ids:
-            continue  # deterministic template wins over the LLM labeling
-        flags = classify_verify.verify_record(rec)
-        review.extend(str(f) for f in flags)
-        if any(f.level == "hard" for f in flags):
-            continue  # untrustworthy message; already flagged above
-
-        stream = pair.stream_from_segments(rec.get("segments", []))
-        pairs, err = pair.pair_stream(stream)
-        if err:
-            review.append(f"[HARD] non-alternating: msg {mid}: {err}")
             continue
 
-        date = reconcile.norm_date(rec.get("envelope_date", ""))
-        for label, count in pairs:
-            canonical = normalize.normalize(label)
-            if canonical is None:
-                review.append(f"[HARD] unknown-label: msg {mid}: {label!r} "
-                              f"(count {count}) not in mapping table -- needs LLM/human")
-                continue
-            entries.append({"date": date, "chant": canonical, "count": count})
+        # 2. Deterministic resolver for everyone else.
+        es, flag, _dropped = resolve.resolve_message(m, decisions)
+        if flag:
+            review.append(f"[HARD] unresolved: msg {mid}: {flag}")
+            continue
+        entries.extend(es)
 
     with open(extracted_out, "w", encoding="utf-8") as f:
         json.dump(entries, f, ensure_ascii=False, indent=2)
@@ -87,23 +80,23 @@ def build(classified_path, extracted_out, review_out, blocks_path=None):
 
 
 def main():
-    try:  # review lines can quote Devanagari labels
+    try:  # review lines can quote Devanagari / Urdu labels
         sys.stdout.reconfigure(encoding="utf-8")
     except Exception:
         pass
-    if len(sys.argv) not in (3, 4, 5):
-        print("Usage: python build_extracted.py <classified.jsonl> "
-              "<extracted.json> [review.txt] [blocks.jsonl]")
+    if len(sys.argv) not in (3, 4):
+        print("Usage: python build_extracted.py <blocks.jsonl> "
+              "<extracted.json> [review.txt]")
         sys.exit(2)
-    classified, extracted = sys.argv[1], sys.argv[2]
+    blocks, extracted = sys.argv[1], sys.argv[2]
     review_out = sys.argv[3] if len(sys.argv) > 3 else "review.txt"
-    blocks = sys.argv[4] if len(sys.argv) > 4 else None
 
-    entries, review, hard = build(classified, extracted, review_out, blocks)
+    entries, review, hard = build(blocks, extracted, review_out)
     print(f"Wrote {len(entries)} entries to {extracted}")
     print(f"Review items: {len(review)} ({hard} hard) -> {review_out}")
     if hard:
-        print("HARD review items present -- resolve them before aggregating.")
+        print("HARD review items present -- resolve them (extend chant_mappings.json "
+              "/ compose_rules.json) and re-run before aggregating.")
     sys.exit(1 if hard else 0)
 
 

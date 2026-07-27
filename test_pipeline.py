@@ -9,9 +9,11 @@ import os
 import json
 import tempfile
 
-import classify_verify as cv
+import classify_verify as cv   # legacy backbone (no longer in the workflow; still tested)
 import pair
 import normalize
+import compose
+import resolve
 import build_extracted
 import sender_templates
 
@@ -200,32 +202,25 @@ def test_template_unknown_sender_none():
     assert sender_templates.extract("Some Other Person", "300 darood 500 kalma") is None
 
 
-def test_build_template_overrides_llm_labeling(tmp_path=None):
-    import os as _os, json as _json, tempfile as _tf
-    # a template-sender message that the LLM mislabeled (garbage chant-label);
-    # with blocks passed, the deterministic template must win.
-    classified = [{
-        "id": 5, "envelope_date": "09/03",
+def _write_blocks(d, blocks):
+    bp = os.path.join(d, "blocks.jsonl")
+    with open(bp, "w", encoding="utf-8") as f:
+        for b in blocks:
+            f.write(json.dumps(b, ensure_ascii=False) + "\n")
+    return bp
+
+
+def test_build_template_sender_positional():
+    # a rigid dot-template message: build parses it positionally, not by guessing.
+    blocks = [{
+        "id": 5, "envelope_date": "09/03", "sender": "+91 99264 85966",
         "text": "09.04.2026.abid.300.martba.darood.sharif.500.martba.darood."
                 "sharif.500.msrtba.surs.iklas.500.martba.kalma.sharif.",
-        "segments": [
-            {"t": "09.04.2026.abid.", "role": "filler"},
-            {"t": "300", "role": "count"},
-            {"t": ".martba.darood.sharif.500.martba.darood.sharif.500.msrtba."
-                  "surs.iklas.500.martba.kalma.sharif.", "role": "chant-label"},
-        ],
     }]
-    blocks = [{"id": 5, "envelope_date": "09/03", "sender": "+91 99264 85966",
-               "text": classified[0]["text"]}]
-    with _tf.TemporaryDirectory() as d:
-        cp = _os.path.join(d, "c.jsonl"); bp = _os.path.join(d, "b.jsonl")
-        with open(cp, "w", encoding="utf-8") as f:
-            f.write(_json.dumps(classified[0], ensure_ascii=False) + "\n")
-        with open(bp, "w", encoding="utf-8") as f:
-            f.write(_json.dumps(blocks[0], ensure_ascii=False) + "\n")
-        ep = _os.path.join(d, "e.json"); rp = _os.path.join(d, "r.txt")
-        entries, review, hard = build_extracted.build(cp, ep, rp, bp)
-    # template produced the 4 correct entries; the LLM's garbage label was ignored
+    with tempfile.TemporaryDirectory() as d:
+        bp = _write_blocks(d, blocks)
+        ep = os.path.join(d, "e.json"); rp = os.path.join(d, "r.txt")
+        entries, review, hard = build_extracted.build(bp, ep, rp)
     assert hard == 0, review
     chants = sorted((e["chant"], e["count"]) for e in entries)
     assert chants == [("DAROOD", 300), ("DAROOD", 500),
@@ -233,62 +228,93 @@ def test_build_template_overrides_llm_labeling(tmp_path=None):
     assert all(e["date"] == "09/03/2026" for e in entries)
 
 
+# ----------------------------------------------------------- compose ----
+def test_compose_multiplicative_coverage():
+    # combos never enumerated in any dictionary resolve from token classes.
+    assert compose.match("sure kauser") == "SURAH KAUSER"
+    assert compose.match("surh kausar") == "SURAH KAUSER"
+    assert compose.match("surah koshar") == "SURAH KAUSER"
+    assert compose.match("surh nash") == "surah naas"
+
+
+def test_compose_optional_slots_and_scripts():
+    assert compose.match("ikhlas") == "SURAH IKHLAS"          # SURAH optional
+    assert compose.match("surah ikhlas sharif") == "SURAH IKHLAS"  # SHARIF optional
+    assert compose.match("sur e kahf") == "Sur e Kahf"        # 'e' dropped
+    assert compose.match("durood taj") == "DAROOD TAJ"
+    assert compose.match("सूरह कौसर") == "SURAH KAUSER"        # Devanagari
+    assert compose.match("سورہ کوثر") == "SURAH KAUSER"        # Urdu
+
+
+def test_compose_conservative_no_false_match():
+    assert compose.match("surah") is None          # shared word alone is ambiguous
+    assert compose.match("surah khan") is None     # unknown word -> whole phrase fails
+    assert compose.match("ali") is None            # a plain name
+    assert compose.match("") is None
+
+
+def test_compose_never_disagrees_with_exact_dict():
+    # where compose CAN match a known dictionary variant, it must agree.
+    data = json.load(open(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                     "chant_mappings.json"), encoding="utf-8"))
+    for canon, variants in data.items():
+        for v in [canon] + variants:
+            got = compose.match(v)
+            assert got in (None, canon), f"{v!r}: compose={got!r} dict={canon!r}"
+
+
 # ------------------------------------------------------------ end-to-end ----
+def _block(text, mid=1, env="13/03", sender="Some Person"):
+    return {"id": mid, "envelope_date": env, "sender": sender, "text": text}
+
+
 def test_build_end_to_end():
-    records = [
-        # clean id82-like -> one DAROOD entry
-        _rec([
-            {"t": "गोरखपुर से ", "role": "filler"},
-            {"t": "13-03-2026", "role": "date"},
-            {"t": "\nवशीउल्लाह\n", "role": "name"},
-            {"t": "दरूद शरीफ- ", "role": "chant-label"},
-            {"t": "2000", "role": "count"},
-            {"t": " बार", "role": "filler"},
-        ], mid=82),
-        # id67-like run-on -> four entries, correctly paired
-        _rec([
-            {"t": "Aaj dinank ", "role": "filler"},
-            {"t": "13.3.2026", "role": "date"},
-            {"t": " sufi afsar ", "role": "name"},
-            {"t": "darud Sharif ", "role": "chant-label"},
-            {"t": "121", "role": "count"},
-            {"t": " martba kalma Sharif ", "role": "filler"},
-            {"t": "kalma Sharif ", "role": "chant-label"},
-            {"t": "121", "role": "count"},
-            {"t": " martba surah ikhlas ", "role": "filler"},
-            {"t": "surah ikhlas ", "role": "chant-label"},
-            {"t": "30", "role": "count"},
-            {"t": " martba toba astagfirullah ", "role": "filler"},
-            {"t": "toba astagfirullah ", "role": "chant-label"},
-            {"t": "141", "role": "count"},
-        ], mid=67),
-        # unknown label -> routed to review, not into entries
-        _rec([
-            {"t": "brandnewchant ", "role": "chant-label"},
-            {"t": "50", "role": "count"},
-        ], mid=99),
+    # The promoted flow: raw blocks.jsonl -> resolver -> extracted.json.
+    blocks = [
+        # clean id82-like -> one DAROOD entry (name + Devanagari chant + count)
+        _block("गोरखपुर से वशीउल्लाह दरूद शरीफ 2000 बार", mid=82),
+        # id67-like run-on -> four entries, correctly paired (names/units dropped)
+        _block("Aaj dinank 13.3.2026 sufi afsar darud Sharif 121 martba "
+               "kalma Sharif 121 martba surah ikhlas 30 martba "
+               "toba astagfirullah 141", mid=67),
+        # a brand-new (unknown) chant spelling: its count must NOT be guessed;
+        # the dropped phrase leaves 50 dangling -> HARD flag, never in totals.
+        _block("brandnewchant 50", mid=99),
     ]
 
     with tempfile.TemporaryDirectory() as d:
-        cpath = os.path.join(d, "classified.jsonl")
-        with open(cpath, "w", encoding="utf-8") as f:
-            for r in records:
-                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        bp = _write_blocks(d, blocks)
         epath = os.path.join(d, "extracted.json")
         rpath = os.path.join(d, "review.txt")
-        entries, review, hard = build_extracted.build(cpath, epath, rpath)
+        entries, review, hard = build_extracted.build(bp, epath, rpath)
 
     # DAROOD 2000 + the four id67 chants = 5 clean entries
     assert len(entries) == 5, entries
     darood = [e for e in entries if e["chant"] == "DAROOD"]
     assert {e["count"] for e in darood} == {2000, 121}
     assert any(e["chant"] == "Astagfar" and e["count"] == 141 for e in entries)
+    assert any(e["chant"] == "KALMA SHARIF" and e["count"] == 121 for e in entries)
+    assert any(e["chant"] == "SURAH IKHLAS" and e["count"] == 30 for e in entries)
     # every entry carries the send date, never the in-body date
     assert all(e["date"] == "13/03/2026" for e in entries)
-    # the unknown label is a HARD review item, and its count never entered totals
-    assert hard >= 1
-    assert any("unknown-label" in r and "brandnewchant" in r for r in review)
+    # the unknown chant is a HARD review item, and its count never entered totals
+    assert hard >= 1, review
+    assert any("msg 99" in r for r in review)
     assert not any(e["count"] == 50 for e in entries)
+
+
+def test_resolver_is_reproducible():
+    # same input -> byte-identical entries across runs (the whole point).
+    blocks = [_block("darud sharif 121 kalma sharif 121", mid=1),
+              _block("सूरह कौसर 500", mid=2)]
+    decisions = resolve._load_decisions()
+    e1 = [resolve.resolve_message(b, decisions)[0] for b in blocks]
+    e2 = [resolve.resolve_message(b, decisions)[0] for b in blocks]
+    assert e1 == e2
+    flat = [x for es in e1 for x in es]
+    assert ("DAROOD", 121) in [(e["chant"], e["count"]) for e in flat]
+    assert ("SURAH KAUSER", 500) in [(e["chant"], e["count"]) for e in flat]
 
 
 # --------------------------------------------------------------- runner ----
