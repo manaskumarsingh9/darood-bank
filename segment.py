@@ -51,6 +51,7 @@ _SEP_RE = re.compile(r"[\s.,;=\-:/()\[\]{}!?|~'\"“”‘’।]+")
 def _strip_dates(text):
     t = reconcile.MIXED_DATE_RE.sub(" ", text)
     t = reconcile.DATE_RE.sub(" ", t)
+    t = reconcile.COLON_DATE_RE.sub(" ", t)
     t = reconcile.SPACE_DATE_RE.sub(" ", t)
     t = reconcile.DINANK_SHORT_DATE_RE.sub(" ", t)
     t = reconcile.LEADING_SHORT_YEAR_DATE_RE.sub(" ", t)
