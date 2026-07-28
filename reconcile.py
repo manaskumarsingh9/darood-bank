@@ -52,12 +52,20 @@ SPACE_DATE_RE = re.compile(r'\b\d{1,2}\s+\d{1,2}\s+20\d\d\b')
 # "dinank" (=date) keyword immediately followed by a day+year with the month
 # dropped by typo: "dinank 23 2026"
 DINANK_SHORT_DATE_RE = re.compile(r'\bdinank\s+\d{1,2}\s+20\d\d\b', re.IGNORECASE)
+# "dinank" followed by day, month, and a 2-digit year all space-separated:
+# "dinank 1 4 26"
+DINANK_DMY_SHORT_RE = re.compile(r'\bdinank\s+\d{1,2}\s+\d{1,2}\s+\d{2}\b', re.IGNORECASE)
 # leading space-separated date with a 2-digit year: "26 3 26" or "31 3 .26". Only anchored
 # at the very start of the message -- a bare number triple is a date prefix
 # there (this sender group's convention), never three unrelated chant counts.
 LEADING_SHORT_YEAR_DATE_RE = re.compile(r'^\s*\d{1,2}\s+\d{1,2}\s+\.?\d{2}\b')
-# line-leading list markers: "1.", "03.", "4)"
-LIST_MARKER_RE = re.compile(r'(?m)^\s*\d{1,2}[.)]')
+# leading day-dash-glued-month+year with a missing second separator: "07-04026"
+# (meant "07-04-2026"). Only anchored at message start, same rationale as above.
+LEADING_DASH_GLUED_DATE_RE = re.compile(r'^\s*\d{1,2}-\d{4,6}\b')
+# glued day+month (no separator) then a punctuation-separated year: "0404.2026"
+CONCAT_DDMM_DATE_RE = re.compile(r'\b\d{3,4}\s*[./,=\-]+\s*20\d\d\b')
+# line-leading list markers: "1.", "03.", "4)", "1-", "2-"
+LIST_MARKER_RE = re.compile(r'(?m)^\s*\d{1,2}[.)-]')
 
 # Discrepancies at or above this magnitude fail the gate; smaller values are
 # treated as expected stray date/enumeration fragments and only warned about.
@@ -66,11 +74,14 @@ SIGNIFICANCE_THRESHOLD = int(os.environ.get("RECONCILE_MIN", "100"))
 
 def numbers_in(text):
     t = MIXED_DATE_RE.sub(' ', text)
+    t = CONCAT_DDMM_DATE_RE.sub(' ', t)
     t = DATE_RE.sub(' ', t)
     t = COLON_DATE_RE.sub(' ', t)
     t = SPACE_DATE_RE.sub(' ', t)
     t = DINANK_SHORT_DATE_RE.sub(' ', t)
+    t = DINANK_DMY_SHORT_RE.sub(' ', t)
     t = LEADING_SHORT_YEAR_DATE_RE.sub(' ', t)
+    t = LEADING_DASH_GLUED_DATE_RE.sub(' ', t)
     t = LIST_MARKER_RE.sub(' ', t)
     return [int(n) for n in re.findall(r'\d+', t)]
 

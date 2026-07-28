@@ -28,7 +28,8 @@ import normalize      # noqa: E402  (reuse simplify() for phrase keys)
 SEPARATORS = {
     # count units
     "martba", "martaba", "maratba", "mrtba", "msrtba", "martbaa", "bar", "baar",
-    "times", "dafa", "बार", "मर्तबा", "दफा", "वक्त", "मरतबा",
+    "times", "dafa", "para", "pare", "बार", "मर्तबा", "दफा", "वक्त", "मरतबा",
+    "पारे", "पारा",
     # connectives / date words
     "se", "ko", "ki", "ka", "ke", "mein", "main", "aur", "and", "tak", "dinank",
     "aaj", "wala", "wale", "ka",
@@ -50,12 +51,15 @@ _SEP_RE = re.compile(r"[\s.,;=\-:/()\[\]{}!?|~'\"“”‘’।]+")
 
 def _strip_dates(text):
     t = reconcile.MIXED_DATE_RE.sub(" ", text)
+    t = reconcile.CONCAT_DDMM_DATE_RE.sub(" ", t)
     t = reconcile.DATE_RE.sub(" ", t)
     t = reconcile.COLON_DATE_RE.sub(" ", t)
     t = reconcile.SPACE_DATE_RE.sub(" ", t)
     t = reconcile.DINANK_SHORT_DATE_RE.sub(" ", t)
+    t = reconcile.DINANK_DMY_SHORT_RE.sub(" ", t)
     t = reconcile.LEADING_SHORT_YEAR_DATE_RE.sub(" ", t)
-    t = reconcile.LIST_MARKER_RE.sub(" ", t)  # drop line-leading "1." "03)" enumeration
+    t = reconcile.LEADING_DASH_GLUED_DATE_RE.sub(" ", t)
+    t = reconcile.LIST_MARKER_RE.sub(" ", t)  # drop line-leading "1." "03)" "1-" enumeration
     return t
 
 
