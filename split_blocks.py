@@ -18,12 +18,16 @@ import re
 
 # Supports both [date, time] and [time, date] formats
 # [24/02, 4:41 am] or [5:50 am, 06/07/2026] followed by sender: message
-def parse_message_header(line):
-    """Parse WhatsApp message header; returns (date, sender, text) or None."""
+def parse_message_header_full(line):
+    """Parse WhatsApp message header; returns (time, date, sender, text) or None.
+
+    Same matching as parse_message_header, but also hands back the timestamp,
+    which ingest.py needs to order messages pasted out of sequence.
+    """
     # Try [time, date] format first (common from mobile)
     m = re.match(
         r'^\[?\s*'
-        r'(\d{1,2}:\d{2}(?::\d{2})?\s*[ap]\.?m\.?)'  # time (ignored)
+        r'(\d{1,2}:\d{2}(?::\d{2})?\s*[ap]\.?m\.?)'  # time
         r',\s*'
         r'(\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?)'   # envelope date
         r'\]?\s*'
@@ -34,15 +38,15 @@ def parse_message_header(line):
         re.IGNORECASE,
     )
     if m:
-        _time, date, sender, text = m.groups()
-        return date, sender.strip(), text.strip()
+        time, date, sender, text = m.groups()
+        return time.strip(), date, sender.strip(), text.strip()
 
     # Try [date, time] format (common from laptop)
     m = re.match(
         r'^\[?\s*'
         r'(\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?)'   # envelope date
         r',\s*'
-        r'(\d{1,2}:\d{2}(?::\d{2})?\s*[ap]\.?m\.?)'  # time (ignored)
+        r'(\d{1,2}:\d{2}(?::\d{2})?\s*[ap]\.?m\.?)'  # time
         r'\]?\s*'
         r'(?:-\s*)?'
         r'([^:]+?):\s*'                              # sender
@@ -51,10 +55,19 @@ def parse_message_header(line):
         re.IGNORECASE,
     )
     if m:
-        date, _time, sender, text = m.groups()
-        return date, sender.strip(), text.strip()
+        date, time, sender, text = m.groups()
+        return time.strip(), date, sender.strip(), text.strip()
 
     return None
+
+
+def parse_message_header(line):
+    """Parse WhatsApp message header; returns (date, sender, text) or None."""
+    parsed = parse_message_header_full(line)
+    if parsed is None:
+        return None
+    _time, date, sender, text = parsed
+    return date, sender, text
 
 
 def split_messages(lines):

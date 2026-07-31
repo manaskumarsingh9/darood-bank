@@ -16,6 +16,9 @@ import compose
 import resolve
 import build_extracted
 import sender_templates
+import split_blocks
+import ingest
+import split_weeks
 
 
 # ---------------------------------------------------------------- verify ----
@@ -357,6 +360,348 @@ def test_resolver_is_reproducible():
     flat = [x for es in e1 for x in es]
     assert ("DAROOD", 121) in [(e["chant"], e["count"]) for e in flat]
     assert ("SURAH KAUSER", 500) in [(e["chant"], e["count"]) for e in flat]
+
+
+# ------------------------------------------------- ingest / split_weeks ----
+def _msg(time, date, sender, text):
+    return f"[{time}, {date}] {sender}: {text}"
+
+
+A = _msg("4:48 am", "08/04/2026", "Alice", "darood sharif 100 martba")
+B = _msg("6:13 am", "08/04/2026", "Bob", "surah ikhlas 51 bar")
+C = _msg("7:33 am", "09/04/2026", "Carol", "kalma sharif 21 bar")
+D = _msg("9:01 pm", "23/03/2026", "Dara", "sijra sharif 11 bar")
+
+
+def _ingest(*chunks):
+    """Merge chunks the way ingest.py does; returns (messages, new_from_last).
+
+    Each chunk is a separate paste, which matters: repeat handling is per-paste.
+    """
+    merged, new = [], 0
+    for i, chunk in enumerate(chunks):
+        msgs, _ = ingest.read_messages(chunk.split("\n"), None, f"paste{i}")
+        merged, new, _trunc = ingest.merge(merged, msgs)
+    return merged, new
+
+
+def test_ingest_dedupes_overlapping_pastes():
+    # Second paste re-copies A and B (as happens scrolling up) plus one new one.
+    merged, new = _ingest("\n".join([A, B]), "\n".join([A, B, C]))
+    assert len(merged) == 3, [m["sender"] for m in merged]
+    assert new == 1, new
+    assert [m["sender"] for m in merged] == ["Alice", "Bob", "Carol"]
+
+
+def test_ingest_is_idempotent():
+    once, _ = _ingest("\n".join([A, B, C]))
+    twice, new = _ingest("\n".join([A, B, C]), "\n".join([A, B, C]))
+    assert len(once) == len(twice) == 3
+    assert new == 0, new
+
+
+def test_ingest_sorts_out_of_order_pastes():
+    # Newer chunk pasted first, older chunk second (scrolling backwards).
+    merged, _ = _ingest("\n".join([B, C]), D)
+    assert [m["sender"] for m in merged] == ["Dara", "Bob", "Carol"]
+
+
+def test_ingest_orders_within_a_day_by_time():
+    merged, _ = _ingest("\n".join([B, A]))  # 6:13 am pasted before 4:48 am
+    assert [m["sender"] for m in merged] == ["Alice", "Bob"]
+
+
+def test_ingest_preserves_multiline_devanagari():
+    text = ("[10:37 am, 08/04/2026] Mushtaq: 08/04/2026\n"
+            "200 दुरूद शरीफ\n"
+            "200 कलमा शरीफ\n"
+            "22 सूरेह फातेहा")
+    merged, _ = _ingest(text)
+    assert len(merged) == 1, merged
+    assert merged[0]["body"] == ["08/04/2026", "200 दुरूद शरीफ",
+                                 "200 कलमा शरीफ", "22 सूरेह फातेहा"]
+
+
+def test_ingest_preserves_urdu_body():
+    merged, _ = _ingest("[8:00 pm, 08/04/2026] Sufi: درود شریف 100 مرتبہ")
+    assert len(merged) == 1
+    assert "درود شریف" in merged[0]["body"][0]
+
+
+def test_ingest_strips_leading_bidi_marks():
+    # WhatsApp prefixes copied lines with LRM/RLM; str.strip() does not remove them.
+    assert "‎".strip() == "‎", "precondition: strip() leaves bidi marks"
+    merged, _ = _ingest("‎" + A)
+    assert len(merged) == 1, "bidi-prefixed header must still parse"
+    assert merged[0]["sender"] == "Alice"
+
+
+def test_ingest_preserves_leading_space_on_continuation():
+    # A continuation line's leading space is part of the body the resolver reads;
+    # stripping it silently alters the text being counted.
+    text = "[10:37 am, 08/04/2026] Raj: 20/03/2026\n राजेश राघव \nदरूद शरीफ - 108"
+    merged, _ = _ingest(text)
+    assert merged[0]["body"][1] == " राजेश राघव ", ascii(merged[0]["body"][1])
+
+
+def test_strip_leading_bidi_leaves_whitespace():
+    assert split_weeks.strip_leading_bidi("‎ x") == " x"
+    assert split_weeks.strip_leading_bidi("‏‫ abc") == " abc"
+    assert split_weeks.strip_leading_bidi("  indented") == "  indented"
+
+
+def test_ingest_keeps_genuine_double_send():
+    # Real case from inputs/processed/01-to-07-Apr-2026.txt: Bashir Patel posts
+    # one message per person in the same minute, and the same name appears twice.
+    # Collapsing these would silently drop a real 2021 darood.
+    one = _msg("11:14 am", "07/04/2026", "Bashir", "जन्नतुल फिरदौस 2021 मर्तबा दरूद शरीफ")
+    two = _msg("11:14 am", "07/04/2026", "Bashir", "फरजाना जन्नत 2021 मर्तबा दरूद शरीफ")
+    merged, _ = _ingest("\n".join([one, two, one]))
+    assert len(merged) == 3, [m["body"] for m in merged]
+
+
+def test_ingest_double_send_survives_overlapping_pastes():
+    one = _msg("11:14 am", "07/04/2026", "Bashir", "जन्नतुल फिरदौस 2021")
+    two = _msg("11:14 am", "07/04/2026", "Bashir", "फरजाना जन्नत 2021")
+    # Both pastes contain the whole run; the doubled message must stay doubled.
+    merged, _ = _ingest("\n".join([one, two, one]), "\n".join([one, two, one]))
+    assert len(merged) == 3, [m["body"] for m in merged]
+
+
+def test_ingest_multiplicity_is_max_not_sum():
+    # One paste has the message once, another twice -> two copies, not three.
+    merged, _ = _ingest(A, "\n".join([A, A]))
+    assert len(merged) == 2, [m["body"] for m in merged]
+    merged, _ = _ingest("\n".join([A, A]), A)
+    assert len(merged) == 2, [m["body"] for m in merged]
+
+
+def test_ingest_prefix_within_one_paste_is_kept():
+    # Same minute, one body a prefix of the other, but both from one paste:
+    # that is real data, not a truncation artifact.
+    short = _msg("11:14 am", "07/04/2026", "Bashir", "जमीला भी 2021 मर्तबा दरूद")
+    long = _msg("11:14 am", "07/04/2026", "Bashir", "जमीला भी 2021 मर्तबा दरूद शरीफ")
+    merged, _ = _ingest("\n".join([short, long]))
+    assert len(merged) == 2, [m["body"] for m in merged]
+
+
+def test_ingest_splits_glued_pastes():
+    # Two chunks concatenated with no newline between them weld the last message
+    # of one onto the first of the next; the counts must not cross senders.
+    merged, _ = _ingest(A + B)          # no separator at all
+    assert len(merged) == 2, [m["sender"] for m in merged]
+    assert [m["sender"] for m in merged] == ["Alice", "Bob"]
+    assert merged[0]["body"] == ["darood sharif 100 martba"]
+    assert merged[1]["body"] == ["surah ikhlas 51 bar"]
+
+
+def test_ingest_does_not_split_bracketed_body_text():
+    line = "[4:48 am, 08/04/2026] Alice: darood [see note] 100 martba"
+    merged, _ = _ingest(line)
+    assert len(merged) == 1, merged
+    assert merged[0]["body"] == ["darood [see note] 100 martba"]
+
+
+def test_ingest_drops_truncated_copy_of_a_message():
+    # A paste cut off mid-message leaves a shortened copy that exact-match
+    # dedupe cannot see; keeping it would count its numbers twice.
+    full = "[10:37 am, 08/04/2026] Raj: 200 darood\n200 kalma\n22 fatiha"
+    cut = "[10:37 am, 08/04/2026] Raj: 200 darood\n200 kalma"
+    merged, _ = _ingest(full, cut)
+    assert len(merged) == 1, [m["body"] for m in merged]
+    assert merged[0]["body"] == ["200 darood", "200 kalma", "22 fatiha"]
+
+
+def test_ingest_truncated_drop_is_order_independent():
+    full = "[10:37 am, 08/04/2026] Raj: 200 darood\n200 kalma\n22 fatiha"
+    cut = "[10:37 am, 08/04/2026] Raj: 200 darood\n200 kalma"
+    merged, _ = _ingest(cut, full)      # truncated copy arrives first
+    assert len(merged) == 1, [m["body"] for m in merged]
+    assert merged[0]["body"][-1] == "22 fatiha"
+
+
+def test_ingest_keeps_distinct_messages_at_same_timestamp():
+    # Same sender and minute, but neither body is a prefix of the other.
+    one = "[10:37 am, 08/04/2026] Raj: 200 darood"
+    two = "[10:37 am, 08/04/2026] Raj: 51 kalma"
+    merged, _ = _ingest(one, two)
+    assert len(merged) == 2, [m["body"] for m in merged]
+
+
+def test_ingest_skips_preamble_before_first_message():
+    msgs, skipped = ingest.read_messages(
+        ("Messages are end-to-end encrypted.\n" + A).split("\n"), None, "test")
+    assert len(msgs) == 1 and skipped == 1, (len(msgs), skipped)
+
+
+def test_ingest_identity_distinguishes_senders():
+    other = _msg("4:48 am", "08/04/2026", "Zed", "darood sharif 100 martba")
+    merged, _ = _ingest("\n".join([A, other]))
+    assert len(merged) == 2, "same text from a different sender is not a duplicate"
+
+
+def test_parse_time_meridiem():
+    assert ingest.parse_time("12:05 am") == (0, 5, 0)
+    assert ingest.parse_time("12:05 pm") == (12, 5, 0)
+    assert ingest.parse_time("4:48 am") == (4, 48, 0)
+    assert ingest.parse_time("11:49 pm") == (23, 49, 0)
+
+
+def test_header_wrapper_matches_full_parser():
+    # parse_message_header must keep its old 3-tuple contract after the refactor.
+    assert split_blocks.parse_message_header(A) == ("08/04/2026", "Alice",
+                                                    "darood sharif 100 martba")
+    assert split_blocks.parse_message_header("not a message") is None
+    full = split_blocks.parse_message_header_full(A)
+    assert full[0] == "4:48 am"
+    assert full[1:] == split_blocks.parse_message_header(A)
+
+
+def test_week_filename_spans():
+    from datetime import date as _d
+    assert split_weeks.week_filename(_d(2026, 4, 6), _d(2026, 4, 12)) == \
+        "06-to-12-Apr-2026.txt"
+    assert split_weeks.week_filename(_d(2026, 3, 30), _d(2026, 4, 5)) == \
+        "30-Mar-to-05-Apr-2026.txt"
+    assert split_weeks.week_filename(_d(2026, 12, 28), _d(2027, 1, 3)) == \
+        "28-Dec-2026-to-03-Jan-2027.txt"
+
+
+def test_week_bucketing_is_monday_based():
+    from datetime import date as _d
+    weeks, _, _ = split_weeks.bucket_lines([A, C, D], None, False, 0)
+    assert sorted(weeks) == [_d(2026, 3, 23), _d(2026, 4, 6)], sorted(weeks)
+
+
+def test_since_floor_drops_older_messages():
+    from datetime import date as _d
+    weeks, _, dropped = split_weeks.bucket_lines(
+        [D, A, C], None, False, 0, since=_d(2026, 4, 1))
+    assert dropped == 1, dropped
+    assert sorted(weeks) == [_d(2026, 4, 6)]
+
+
+def test_since_floor_drops_continuation_lines_too():
+    from datetime import date as _d
+    weeks, _, _ = split_weeks.bucket_lines(
+        [D, "51 bar surah fatiha", A], None, False, 0, since=_d(2026, 4, 1))
+    kept = [ln for group in weeks.values() for ln in group]
+    assert "51 bar surah fatiha" not in kept, kept
+
+
+def _run_split_weeks(tmp, *extra):
+    """Invoke split_weeks.main() against a temp dir; returns its printed output."""
+    import io
+    import sys as _sys
+    import contextlib
+    argv = _sys.argv
+    _sys.argv = ["split_weeks.py", os.path.join(tmp, "chatlog.txt"),
+                 "-o", os.path.join(tmp, "inputs"),
+                 "--state", os.path.join(tmp, "state.json")] + list(extra)
+    buf = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(buf):
+            split_weeks.main()
+    finally:
+        _sys.argv = argv
+    return buf.getvalue()
+
+
+def _setup_split(tmp):
+    os.makedirs(os.path.join(tmp, "inputs"), exist_ok=True)
+    with open(os.path.join(tmp, "chatlog.txt"), "w", encoding="utf-8") as f:
+        f.write("\n".join([A, B, C]) + "\n")
+    return os.path.join(tmp, "inputs", "06-to-12-Apr-2026.txt")
+
+
+def test_split_weeks_writes_and_records_week():
+    with tempfile.TemporaryDirectory() as tmp:
+        week = _setup_split(tmp)
+        _run_split_weeks(tmp)
+        assert os.path.exists(week), "week file should be written"
+        with open(os.path.join(tmp, "state.json"), encoding="utf-8") as f:
+            state = json.load(f)
+        assert "06-to-12-Apr-2026.txt" in state["generated"]
+
+
+def test_split_weeks_never_overwrites_handmade_file():
+    with tempfile.TemporaryDirectory() as tmp:
+        week = _setup_split(tmp)
+        with open(week, "w", encoding="utf-8") as f:
+            f.write("HAND MADE\n")
+        out = _run_split_weeks(tmp)        # no state -> not ours -> protected
+        with open(week, encoding="utf-8") as f:
+            assert f.read() == "HAND MADE\n", \
+                "a file this script did not create must never be overwritten"
+        assert "KEEP" in out, out
+
+
+def test_split_weeks_rewrites_its_own_file():
+    with tempfile.TemporaryDirectory() as tmp:
+        week = _setup_split(tmp)
+        _run_split_weeks(tmp)              # creates it and records provenance
+        with open(week, "w", encoding="utf-8") as f:
+            f.write("stale\n")
+        _run_split_weeks(tmp)              # ours, so it may be refreshed
+        with open(week, encoding="utf-8") as f:
+            assert "stale" not in f.read()
+
+
+def test_split_weeks_overwrite_flag_forces_handmade():
+    with tempfile.TemporaryDirectory() as tmp:
+        week = _setup_split(tmp)
+        with open(week, "w", encoding="utf-8") as f:
+            f.write("HAND MADE\n")
+        _run_split_weeks(tmp, "--overwrite")
+        with open(week, encoding="utf-8") as f:
+            assert "HAND MADE" not in f.read()
+
+
+def test_split_weeks_skips_already_processed_week():
+    with tempfile.TemporaryDirectory() as tmp:
+        week = _setup_split(tmp)
+        processed = os.path.join(tmp, "inputs", "processed")
+        os.makedirs(processed)
+        with open(os.path.join(processed, "06-to-12-Apr-2026.txt"), "w",
+                  encoding="utf-8") as f:
+            f.write("already counted\n")
+        out = _run_split_weeks(tmp)
+        assert not os.path.exists(week), "processed week must not be regenerated"
+        assert "already processed" in out, out
+
+
+def test_split_weeks_dry_run_writes_nothing():
+    with tempfile.TemporaryDirectory() as tmp:
+        week = _setup_split(tmp)
+        _run_split_weeks(tmp, "--dry-run")
+        assert not os.path.exists(week)
+        assert not os.path.exists(os.path.join(tmp, "state.json"))
+
+
+def test_split_weeks_skips_in_progress_current_week():
+    from datetime import date as _d
+    with tempfile.TemporaryDirectory() as tmp:
+        os.makedirs(os.path.join(tmp, "inputs"))
+        today = _d.today()
+        line = _msg("4:48 am", today.strftime("%d/%m/%Y"), "Alice", "darood 100")
+        with open(os.path.join(tmp, "chatlog.txt"), "w", encoding="utf-8") as f:
+            f.write(line + "\n")
+        out = _run_split_weeks(tmp)
+        assert "still in progress" in out, out
+        assert not os.listdir(os.path.join(tmp, "inputs")), \
+            "a half-captured current week must not be frozen as final"
+
+
+def test_split_weeks_output_reparses_through_split_blocks():
+    # A generated week file must be indistinguishable from a hand-made one.
+    with tempfile.TemporaryDirectory() as tmp:
+        week = _setup_split(tmp)
+        _run_split_weeks(tmp)
+        with open(week, encoding="utf-8") as f:
+            msgs = split_blocks.split_messages(f.readlines())
+        assert len(msgs) == 3, msgs
+        assert [m["sender"] for m in msgs] == ["Alice", "Bob", "Carol"]
+        assert msgs[0]["envelope_date"] == "08/04/2026"
 
 
 # --------------------------------------------------------------- runner ----

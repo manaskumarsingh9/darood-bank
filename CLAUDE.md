@@ -24,6 +24,10 @@ file, it produces the same result.* Follow this procedure exactly.
 ## Pipeline
 
 ```
+raw/inbox/*.txt           (pasted from WhatsApp; OPTIONAL — see step 0)
+  --> ingest.py           --> raw/chatlog.txt              (merge + dedupe + sort)
+  --> split_weeks.py      --> inputs/*.txt                 (Mon-Sun week slices)
+
 inputs/*.txt
   --> split_blocks.py     --> blocks.jsonl                 (deterministic)
   --> build_extracted.py  --> extracted.json + review.txt  (deterministic resolver; HARD gate)
@@ -32,6 +36,56 @@ inputs/*.txt
   --> reconcile.py         (per-date number backstop; deterministic)
   --> aggregate.py        --> outputs/                     (deterministic)
 ```
+
+## Step 0 (OPTIONAL) — building the input files from WhatsApp
+
+**Making input files by hand still works exactly as it always has.** This step is a
+convenience, not a requirement, and nothing downstream of it changed. If the user
+hands you a file in `inputs/`, skip straight to step 1.
+
+The group has **"Export chat" disabled by the admin**, so there is no one-shot export.
+Messages have to be copied out of WhatsApp manually: select messages → Copy → paste
+into a new `.txt` under `raw/inbox/`. That is the only manual part, and only the user
+can do it — the agent has no control over the WhatsApp window. (The desktop app's
+local stores under `%LOCALAPPDATA%\Packages\5319275A.WhatsAppDesktop_*\` are all
+SQLCipher-encrypted; do not go down that road.)
+
+```
+python ingest.py            # merge every raw/inbox/*.txt into raw/chatlog.txt
+python split_weeks.py       # slice raw/chatlog.txt into inputs/<week>.txt
+```
+
+- **Overlapping pastes are safe and expected.** Scrolling up through the group
+  re-copies messages already grabbed; `ingest.py` drops the repeats, so the user
+  never has to track where they left off. Pasting out of order is fine too —
+  messages are stored in timestamp order regardless of paste order.
+- **Repeats are resolved by multiplicity, not presence.** Each distinct message
+  keeps as many copies as the *fullest single paste* contained. This matters:
+  senders really do post the same line twice in one minute (e.g. Bashir Patel
+  sends one message per person and a name recurs — see `11:14 am, 07/04/2026` in
+  `inputs/processed/01-to-07-Apr-2026.txt`), and collapsing those to one would
+  silently drop a real count. Never "simplify" this to a set-based dedupe.
+- Two paste artifacts are repaired: a chunk appended with no newline (which welds
+  two messages together and would file one sender's counts under another), and a
+  paste cut off mid-message (a shortened near-copy that exact matching misses).
+  The truncation repair only ever compares copies from *different* pastes, since
+  within one paste a prefix relationship is real data.
+- **Weeks are Monday–Sunday**, named `06-to-12-Apr-2026.txt`, or
+  `30-Mar-to-05-Apr-2026.txt` / `29-Dec-2026-to-04-Jan-2027.txt` when a week spans a
+  month or year. Note the older hand-made files use a different, day-of-month
+  convention (`08-to-14-Apr-2026.txt`); both are fine, nothing validates filenames.
+- **`split_weeks.py` never overwrites a file it did not create.** It records the week
+  files it generates in `raw/state.json`; any other file in `inputs/` is left alone
+  with a `KEEP` warning. Only `--overwrite` forces past this.
+- **The in-progress current week is skipped** unless `--include-current`, so a
+  half-captured week is never frozen as final.
+- **`--since YYYY-MM-DD` drops messages older than that date** and is sticky
+  (remembered in `raw/state.json`). Use it once when switching over from hand-made
+  files so already-counted dates are never regenerated under a new filename — the
+  two naming conventions differ, so the filename check alone cannot detect them.
+  A week partially below the floor keeps its full calendar-week name but contains
+  only the messages at or after the floor; that is intended.
+- `raw/` is gitignored, like `inputs/` — it holds personal message data.
 
 ## Procedure — when asked to "process <file>"
 
@@ -202,6 +256,11 @@ model judgment involved. Corrections are scoped to one sender, NOT general rules
 - The deterministic backbone (`segment.py`, `compose.py`, `resolve.py`, `pair.py`,
   `normalize.py`, `sender_templates.py`, `build_extracted.py`) is covered by
   `test_pipeline.py` — run `python test_pipeline.py` after changing any of them.
+  The step-0 helpers (`ingest.py`, `split_weeks.py`) are covered there too.
+- `split_blocks.parse_message_header_full()` returns the message timestamp as well as
+  the date; `parse_message_header()` is a thin wrapper on it keeping the older
+  3-tuple contract. `ingest.py` needs the time to order out-of-order pastes — use the
+  shared parser rather than writing a second one.
 - `classify_verify.py` and `CLASSIFICATION.md` are **legacy** from the earlier
   LLM-labeling design (the model tiled each message into `classified.jsonl`). They
   are kept for reference and still tested, but are no longer part of the workflow

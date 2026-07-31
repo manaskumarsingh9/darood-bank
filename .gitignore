@@ -12,3 +12,6 @@ reconcile_report.txt
 # generated reports
 *.csv
 output.txt
+
+# pasted WhatsApp messages + the merged chat log (raw personal data, like inputs/)
+raw/
