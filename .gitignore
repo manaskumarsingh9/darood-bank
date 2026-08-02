@@ -15,3 +15,6 @@ output.txt
 
 # pasted WhatsApp messages + the merged chat log (raw personal data, like inputs/)
 raw/
+
+# personal Claude Code permission allowlist (settings.json IS committed, this isn't)
+.claude/settings.local.json

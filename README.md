@@ -1,81 +1,80 @@
 # Darood Bank App
 
-A Python application for extracting and counting religious chants from WhatsApp chat exports using Google's Gemini AI.
+A Python application for extracting and counting religious chants from
+WhatsApp chat exports.
 
-## Features
+The pipeline is **fully deterministic** — no AI calls, no randomness. Given
+the same input file, it produces byte-identical output every time. The full
+procedure (and the reasoning behind it) is documented in
+[`CLAUDE.md`](CLAUDE.md); this file is just a quick-start.
 
-- **Automated Extraction:** Uses AI to identify chant names and counts from unstructured text.
-- **Normalization:** Automatically maps various spellings (e.g., "Darood", "Durood") to a standard list.
-- **Verification:** Includes a secondary AI verification step to ensure data accuracy.
-- **Reporting:** Generates detailed CSV and Text summaries, including daily breakdowns.
+> Legacy note: `main.py` and `classify_verify.py` are an earlier design that
+> called the Gemini API per message. They're kept for reference and are
+> still covered by the test suite, but are **not** part of the current
+> workflow and need no API key.
 
 ## Prerequisites
 
-- **Python 3.8+** installed on your system.
-- A **Google Cloud Project** with the Gemini API enabled.
-- An **API Key** for Google Gemini.
+- **Python 3.9+**
+- **`pandas`** — the only third-party dependency the current pipeline needs
+  (used by `aggregate.py` to write CSVs). Everything else is standard
+  library. (`requirements.txt` also lists `google-adk`, `google-genai`, and
+  `python-dotenv` for the legacy scripts above — skip those unless you're
+  touching `main.py`.)
 
 ## Installation
 
-1.  **Clone or Download** this repository to your local machine.
-2.  Open a terminal/command prompt in the project folder.
-3.  **Install Dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+```bash
+git clone <repo-url>
+cd darood-bank
+pip install pandas
+```
 
-## Configuration
-
-1.  **Create a `.env` file:**
-    - Copy the example file:
-      - **Windows:** `copy .env.example .env`
-      - **Mac/Linux:** `cp .env.example .env`
-    - Or simply create a new file named `.env` in the project root.
-
-2.  **Add your API Key:**
-    - Open the `.env` file in a text editor.
-    - Paste your Google API Key:
-      ```env
-      GOOGLE_API_KEY=your_actual_api_key_here
-      ```
+No `.env` or API key is needed.
 
 ## Usage
 
-You can run the application in two modes:
+### Step 0 (optional) — building input files from WhatsApp
 
-### 1. Batch Mode (Default)
-Processes all `.txt` files found in the `inputs/` folder.
-
-```bash
-python main.py
-```
-
-- Place your WhatsApp export files (text format) inside the `inputs/` folder.
-- After processing, files are automatically moved to `inputs/processed/`.
-
-### 2. Single File Mode
-Process a specific file by providing its path.
+If you already have files in `inputs/`, skip this. Otherwise: the group has
+"Export chat" disabled, so messages are copied out by hand — select
+messages → Copy → paste into a new `.txt` under `raw/inbox/`. Then:
 
 ```bash
-python main.py inputs/my_chat_export.txt
+python ingest.py       # merge every raw/inbox/*.txt into raw/chatlog.txt (dedupes, handles out-of-order pastes)
+python split_weeks.py  # slice raw/chatlog.txt into inputs/<week>.txt (Mon-Sun)
 ```
 
-## Input Format
+### Processing a file
 
-The tool is designed to work with WhatsApp chat exports or similar text files.
-- It looks for lines starting with dates (e.g., `16/02/2026`) or timestamps (e.g., `[12:00 pm, 16/02/26]`).
-- It extracts counts like "100 darood", "5 tasbih astagfar", etc.
+```bash
+python split_blocks.py inputs/<file>.txt blocks.jsonl
+python build_extracted.py blocks.jsonl extracted.json review.txt
+python reconcile.py blocks.jsonl extracted.json
+python aggregate.py extracted.json outputs/<timestamp>/<file> blocks.jsonl
+```
+
+`build_extracted.py` exits non-zero if it hits a chant spelling or count it
+can't resolve confidently — see `CLAUDE.md` for how to resolve those flags
+(they get fixed once, in a durable lookup file, and are then handled
+automatically forever after).
 
 ## Outputs
 
-Results are saved in the `outputs/` directory, organized by timestamp:
-
-`outputs/YYYY-MM-DD_HH-MM-SS/`
-- **`summary.txt`**: A simple list of totals (e.g., `DAROOD = 500+100`).
-- **`summary.csv`**: A spreadsheet row with total counts for each chant.
-- **`daily_breakdown.csv`**: A day-by-day table of counts.
+Results are saved in `outputs/<timestamp>/`:
+- **`summary.txt`** — a simple list of totals (e.g., `DAROOD = 500+100`)
+- **`summary.csv`** — one row of total counts per chant
+- **`daily_breakdown.csv`** — a day-by-day table of counts
+- plus an archived copy of `blocks.jsonl`, `extracted.json`,
+  `reconcile_report.txt`, and `review.txt` for that run
 
 ## Troubleshooting
 
-- **"No input files found"**: Make sure your `.txt` files are inside the `inputs/` folder.
-- **API Errors**: Check that your `GOOGLE_API_KEY` in `.env` is correct and has active quota.
+- **Garbled Hindi/Urdu text on Windows**: set `PYTHONIOENCODING=utf-8`
+  before running (the checked-in `.claude/settings.json` sets this
+  automatically if you're using Claude Code).
+- **`build_extracted.py` exits 1**: expected — it means there are HARD flags
+  in `review.txt` to resolve. See the "Resolve the HARD flags" section of
+  `CLAUDE.md`.
+- **`reconcile.py` exits 1**: a per-date count mismatch ≥ 100; see
+  `reconcile_report.txt`.
