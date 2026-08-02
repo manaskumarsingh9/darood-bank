@@ -42,6 +42,8 @@ import sys
 import json
 
 import duplicates         # confirmed duplicate/superseded sends (known_duplicates.json)
+import non_chant          # messages with no counts at all (non_chant_messages.json)
+import text_corrections   # confirmed raw-text typo fixes (text_corrections.json)
 import reconcile           # reuse norm_date for DD/MM -> DD/MM/2026
 import resolve            # the deterministic resolver core
 import sender_templates   # per-sender positional templates (deterministic override)
@@ -53,10 +55,14 @@ def _load_blocks(blocks_path):
 
 
 def build(blocks_path, extracted_out, review_out,
-          known_duplicates_path=duplicates.DEFAULT_PATH):
+          known_duplicates_path=duplicates.DEFAULT_PATH,
+          non_chant_path=non_chant.DEFAULT_PATH,
+          corrections_path=text_corrections.DEFAULT_PATH):
     blocks = _load_blocks(blocks_path)
     decisions = resolve._load_decisions()
     known_duplicates = duplicates.load(known_duplicates_path, norm_date=reconcile.norm_date)
+    known_non_chant = non_chant.load(non_chant_path, norm_date=reconcile.norm_date)
+    corrections = text_corrections.load(corrections_path, norm_date=reconcile.norm_date)
     entries, review = [], []
 
     for m in blocks:
@@ -70,16 +76,37 @@ def build(blocks_path, extracted_out, review_out,
             review.append(f"[INFO] known-duplicate: msg {mid}: excluded -- {dup_reason}")
             continue
 
+        # 0b. Confirmed non-chant message (admin chatter, phone numbers, greetings).
+        nc_reason = known_non_chant.get(non_chant.key(sender, date, m.get("text", "")))
+        if nc_reason is not None:
+            review.append(f"[INFO] non-chant: msg {mid}: excluded -- {nc_reason}")
+            continue
+
+        # 0c. Confirmed raw-text typo fix, applied before anything parses the text.
+        corrected, fix_reason = text_corrections.apply_to(
+            sender, date, m.get("text", ""), corrections)
+        if fix_reason is not None:
+            m = dict(m, text=corrected)
+            review.append(f"[INFO] text-correction: msg {mid}: applied -- {fix_reason}")
+
         # 1. Deterministic per-sender template wins outright for rigid senders.
         if sender_templates.is_template_sender(sender):
-            res = sender_templates.extract(sender, m.get("text", ""))
+            res = sender_templates.extract(sender, m.get("text", ""),
+                                           reconcile.year_of(m.get("envelope_date", "")))
             if res is None:
-                review.append(f"[HARD] template-shape: msg {mid}: sender {sender!r} "
-                              "did not match its template shape -- needs human")
+                # Shape mismatch is NOT automatically a human problem: the sender
+                # simply posted an off-template message that day (e.g. three
+                # chants instead of the usual four). Fall through to the normal
+                # resolver, which flags it only if it genuinely cannot pair.
+                review.append(f"[INFO] template-shape: msg {mid}: sender {sender!r} "
+                              "off-template -- falling through to the resolver")
+            else:
+                for e in res:
+                    entries.append({"date": date, "chant": e["chant"], "count": e["count"]})
                 continue
-            for e in res:
-                entries.append({"date": date, "chant": e["chant"], "count": e["count"]})
-            continue
+            # NOTE: no `continue` here -- an off-template message must FALL THROUGH
+            # to the resolver below. A stray continue here silently dropped the
+            # message and its counts (caught by the reconcile gate as MISSED).
 
         # 2. Deterministic resolver for everyone else.
         es, flag, _dropped = resolve.resolve_message(m, decisions)

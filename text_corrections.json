@@ -1,0 +1,51 @@
+[
+  {
+    "sender": "Bashir Patel Uncle Sufi",
+    "envelope_date": "18/04/2026",
+    "text": "18=4=2026 11000 11 मर्तबा दरूद शरीफ निजामुद्दीन पटेल",
+    "corrected_text": "18=4=2026 11000 मर्तबा दरूद शरीफ निजामुद्दीन पटेल",
+    "reason": "Two numbers for one chant (11000 and 11). Evidence: this sender reports for निजामुद्दीन पटेल on 28 dates in this corpus and EVERY count is 4-digit -- 8021, 7721, 5551, 5051, 5021, 4021, 3021, 2021, 9021, 6021, 5011. He never once sends a 2-digit count. So 11000 is the intended figure and the trailing '11' is a stray keystroke. Reading it as 11 would be wildly out of pattern. User ruling."
+  },
+  {
+    "sender": "+91 98934 59753",
+    "envelope_date": "17/04/2026",
+    "text": "Aaj dinank 17/4/2026 mei Sufi afsar palwada Sharif se darud Sharif 121 martba kalma Sharif 121 martba Sure iklas  9 1  martba tobah astaghfirullah121martba assalam  walekum rahmtullah <This message was edited>",
+    "corrected_text": "Aaj dinank 17/4/2026 mei Sufi afsar palwada Sharif se darud Sharif 121 martba kalma Sharif 121 martba Sure iklas  91  martba tobah astaghfirullah121martba assalam  walekum rahmtullah <This message was edited>",
+    "reason": "One count typed as two ('9 1'). Evidence: this sender posts 109 messages in this corpus and his Surah Ikhlas counts are always 2-3 digit (15, 21, 31, 61, 75, 81, 91, 101, 105, 111, 115, 121) -- never a bare 9 or 1. Decisively, on 04/04/2026 he wrote 'Sure ikhlas 91 martba', so 91 is an established value for him. The space is a stray keystroke. User ruling."
+  },
+  {
+    "sender": "Bashir Patel Uncle Sufi",
+    "envelope_date": "07/05/2026",
+    "text": "7.5.2o26 sonway Sarif Sufi Bashir Patel durood Sharif 1521 martba durood taj 1 bar sijra Sarif 1 bar aaytalkurshi 21 bar suruh fatiha 21 bar suruh ekhlas21 bar asthfirullah 200 bar",
+    "corrected_text": "7.5.2026 sonway Sarif Sufi Bashir Patel durood Sharif 1521 martba durood taj 1 bar sijra Sarif 1 bar aaytalkurshi 21 bar suruh fatiha 21 bar suruh ekhlas21 bar asthfirullah 200 bar",
+    "reason": "Date typo: the year is written with the letter 'o' instead of a zero (2o26), so the date detector could not see it and 7, 5 and 26 leaked in as three phantom counts. Purely a keystroke fix; no count is altered."
+  },
+  {
+    "sender": "+91 98934 59753",
+    "envelope_date": "12/07/2026",
+    "text": "Aaj dinank 12 72026 me Sufe afsar bhai palwada Sharif se darud Sharif 121 martba kalma Sharif 121 martba Surye iklhas 31 martba toba astagfirullah 151 Martaba assalam walekum rahmtullahi wa barakatuh",
+    "corrected_text": "Aaj dinank 12 7 2026 me Sufe afsar bhai palwada Sharif se darud Sharif 121 martba kalma Sharif 121 martba Surye iklhas 31 martba toba astagfirullah 151 Martaba assalam walekum rahmtullahi wa barakatuh",
+    "reason": "Date typo: month and year glued into 72026, leaving 12 and 72026 as phantom counts. Envelope date confirms 12/07/2026. No count is altered."
+  },
+  {
+    "sender": "Sufi Arvind Tiwari Indore",
+    "envelope_date": "28/07/2026",
+    "text": "28/072026\nगुरु मंत्र...216\nगायत्री मंत्र...216\nदरूद शरीफ...216",
+    "corrected_text": "28/07/2026\nगुरु मंत्र...216\nगायत्री मंत्र...216\nदरूद शरीफ...216",
+    "reason": "Date typo: month and year glued into 072026, leaving phantom counts. Envelope date confirms 28/07/2026. No count is altered."
+  },
+  {
+    "sender": "Sufi Sanjay Nagraj Devas",
+    "envelope_date": "26/04/2026",
+    "text": "सूफ़ी  नागराज परिवार\nदेवास 🙏🏻 प्रणाम 🙏🏻\n  05/04/2026 से 15/04/26 तक\n\n1.सूफ़ी संजय नागराज \nदरूद शरीफ 1751 मर्तबा \nशिजरा शरीफ 11 मर्तबा\nश्री गुरु मंत्र 1500 बार\nश्री गायत्री मंत्र 551 बार \nसुरहफातिया 201 मर्तबा\nसुरह इखलास 501 बार\n\n2.सूफ़ी श्रीमती अनिता नागराज \n दरूद शरीफ 2500\nश्री गुरु मंत्र 1650 बार \nश्री गायत्री मंत्र 1650 मर्तबा \nसुरह फातिया 121 बार\nसुरह इकलाख 12 1बार\n\n03.सूफी जियांशी नागराज\nदुरूद शरीफ 108 मर्तबा \nश्री गुरु मंत्र 108 बार\nश्री गायत्री मंत्र 51 बार\n \n4.सूफ़ी गायत्री नागराज \nदुरूद शरीफ 201 मर्तबा \nश्री गुरु मंत्र 201 बार\n श्री गायत्री मंत्र 51 बार\n\n5.सूफी प्रियांशी नागराज\nदुरूद शरीफ 254 बार \nश्री गायत्री मंत्र 251 बार \n\n शुक्रिया 🙏🏻🙏🏻🙏🏻🙏🏻",
+    "corrected_text": "सूफ़ी  नागराज परिवार\nदेवास 🙏🏻 प्रणाम 🙏🏻\n  05/04/2026 से 15/04/26 तक\n\n1.सूफ़ी संजय नागराज \nदरूद शरीफ 1751 मर्तबा \nशिजरा शरीफ 11 मर्तबा\nश्री गुरु मंत्र 1500 बार\nश्री गायत्री मंत्र 551 बार \nसुरहफातिया 201 मर्तबा\nसुरह इखलास 501 बार\n\n2.सूफ़ी श्रीमती अनिता नागराज \n दरूद शरीफ 2500\nश्री गुरु मंत्र 1650 बार \nश्री गायत्री मंत्र 1650 मर्तबा \nसुरह फातिया 121 बार\nसुरह इकलाख 121बार\n\n03.सूफी जियांशी नागराज\nदुरूद शरीफ 108 मर्तबा \nश्री गुरु मंत्र 108 बार\nश्री गायत्री मंत्र 51 बार\n \n4.सूफ़ी गायत्री नागराज \nदुरूद शरीफ 201 मर्तबा \nश्री गुरु मंत्र 201 बार\n श्री गायत्री मंत्र 51 बार\n\n5.सूफी प्रियांशी नागराज\nदुरूद शरीफ 254 बार \nश्री गायत्री मंत्र 251 बार \n\n शुक्रिया 🙏🏻🙏🏻🙏🏻🙏🏻",
+    "reason": "One count typed as two: 121 split by a stray space into 12 and 1. Evidence: every other person in this same message reports 3-digit counts (1751, 1500, 551, 201, 501, 2500, 1650, 121, 108, 254, 251) and this sender never reports a 1 or a 12. The adjacent line for the same person reads 121. User-confirmed method: read the candidate against the sender profile."
+  },
+  {
+    "sender": "+91 98934 59753",
+    "envelope_date": "04/07/2026",
+    "text": "Aaj dinank 4.6.2026 me Sufe afsar bhai palwada Sharif 121 martba kalma Sharif 121 martba Surye iklhas 61 martba toba astagfirullah 151 martba  assalam walekum rahmtullahi wa barakatuh <This message was edited>",
+    "corrected_text": "Aaj dinank 4.6.2026 me Sufe afsar bhai palwada Sharif se darud Sharif 121 martba kalma Sharif 121 martba Surye iklhas 61 martba toba astagfirullah 151 martba  assalam walekum rahmtullahi wa barakatuh <This message was edited>",
+    "reason": "The chant name darud Sharif was omitted before the first count, stranding it. Evidence: count_profile shows this sender posts 105 resolved reports and EVERY one opens with darud Sharif, whose most common value is exactly 121 (68 of 105). The message is his standard template with one dropped phrase."
+  }
+]

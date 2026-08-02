@@ -42,6 +42,8 @@ CHANT_ORDER = [
     "Duwaye Kunut", "Maja Mrityunjay mantra", "Surah Fajr", "Dua e Noor",
     "Darood Mahi", "Surah Yaseen", "Raksha Strota", "Aman Rasul",
     "kul sharif", "Surah atah takasur", "Surah Alif Laam",
+    "Subhanallah", "Alhamdulillah", "Alhamdulillah Sharif", "Allah Hu Akbar",
+    "Lahaula Wala Quvvata",
 ]
 
 

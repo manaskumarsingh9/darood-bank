@@ -4,5 +4,11 @@
     "envelope_date": "14/03/2026",
     "text": "Aaj dinank 14.3.2026 mein Sufe afsar bhai palwada Sharif se darud Sharif 121 martba kalma Sharif 121 martba Sur ikhlas 31 martba 121 martba assalam walekum rahmtullahi wa barakatuh",
     "reason": "Incomplete send missing the 'toba astagfirullah' label before the trailing 121, leaving it a genuinely dangling count. Same sender resent the complete message on the same date (msg 89: darud=121, kalma=121, surah ikhlas=31, toba astagfirullah=121) moments later, which already covers this day's totals -- counting this one too would double-count."
+  },
+  {
+    "sender": "Sufi Latif Mohammad",
+    "envelope_date": "15/04/2026",
+    "text": "400 मर्तबा",
+    "reason": "Bare count with no chant named. The immediately preceding message from the same sender on the same date (msg 187: '400 बिस्मिल्लाहिर्रहमानिर्रहीम') carries the same 400 with its chant, so this is the sender reiterating/clarifying the count he had just sent. Counting it again would double the day's BISMILLAH SHARIF total. User ruling: drop as a duplicate rather than invent a chant or chase a months-old clarification."
   }
 ]

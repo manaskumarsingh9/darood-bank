@@ -24,8 +24,17 @@
     "दुरूद शरीफ",
     "दरुद शरीफ",
     "दरूद पाक",
+    "दरुदशरीफ",
+    "दरूदशरीफ",
     "درود",
     "درود شریف"
+  ],
+  "Naad-e-Ali": [
+    "naad e ali",
+    "naade ali",
+    "nanded ali",
+    "nade ali",
+    "नाद ए अली"
   ],
   "DAROOD TAJ": [
     "darood taj",
@@ -36,6 +45,9 @@
     "durood taj",
     "दरूद ताज",
     "दरूद e ताज",
+    "दुरुदताज",
+    "दुरुदताजताज",
+    "दुरूदताज",
     "درود تاج"
   ],
   "Gayatri Mantra": [
@@ -106,6 +118,10 @@
   "AAYTUL KURSI": [
     "aaytul kursi",
     "aytal kursi",
+    "aaytal kursi",
+    "ayetal kursi",
+    "ayatal kursi",
+    "अयातुल कुर्सी",
     "ayatul kursi",
     "aaytalkurshi",
     "आयतुल कुर्सी",
@@ -121,6 +137,9 @@
     "शिज़रा शरीफ",
     "शिजरा शरीफ",
     "sidra sharif",
+    "shijrashrif",
+    "shijrasharif",
+    "sijrasharif",
     "شجرہ شریف"
   ],
   "Astagfar": [
@@ -131,6 +150,10 @@
     "asthfirullah",
     "astaghfirullah",
     "अस्तगफार",
+    "आसतगफार",
+    "तोबा आसतगफार",
+    "तोबा अस्तगफार",
+    "अस्तगफिरुल्लाह",
     "तोबा अस्तगफिरुल्लाह",
     "استغفار"
   ],
@@ -153,6 +176,9 @@
     "bismillah sharif",
     "बिस्मिल्लाह",
     "बिस्मिल्लाह शरीफ",
+    "बिस्मिल्लाहिर्रहमानिर्रहीम",
+    "बिस्मिल्लाहिर रहमानिर रहीम",
+    "bismillahir rahmanir raheem",
     "بسم اللہ",
     "بسم اللہ شریف"
   ],
@@ -175,8 +201,17 @@
   ],
   "YASEEN SHARIF": [
     "yaseen sharif",
+    "yasin sharif",
+    "yaseen shareef",
     "यासीन शरीफ",
     "यासीन सरीफ"
+  ],
+  "AAYTE KARIMA": [
+    "aayte karima",
+    "aayat e karima",
+    "ayate karima",
+    "aayte kareema",
+    "आयते करीमा"
   ],
   "Surah Yaseen": [
     "surah yaseen",
@@ -186,5 +221,48 @@
     "kalam pak",
     "kalaam pak",
     "कलाम पाक"
+  ],
+  "Alhamdulillah Sharif": [
+    "alhamdulillah sharif",
+    "alhamdulillah shareef",
+    "alhamdulilah sharif",
+    "अल्हमदुलिल्लाह शरीफ"
+  ],
+  "Alhamdulillah": [
+    "alhamdulillah",
+    "alhamdulilah",
+    "alhamdo lillah",
+    "alhamdulillahi",
+    "alhumdulillah",
+    "अल्हमदुलिल्लाह",
+    "अलहम्दुलिल्लाह",
+    "الحمد للہ"
+  ],
+  "Subhanallah": [
+    "subhanallah",
+    "subhan allah",
+    "shubhanallah",
+    "subhaanallah",
+    "सुभानअल्लाह",
+    "सुबहानअल्लाह",
+    "سبحان اللہ"
+  ],
+  "Allah Hu Akbar": [
+    "allah hu akbar",
+    "allahu akbar",
+    "allah hu akbar",
+    "allaho akbar",
+    "अल्लाहु अकबर",
+    "अल्लाह हु अकबर",
+    "اللہ اکبر"
+  ],
+  "Lahaula Wala Quvvata": [
+    "lahola wala quvvata illa billa hil alliyil azeem",
+    "lahaula wala quvvata illa billa hil alliyil azeem",
+    "la haula wala quwwata illa billah",
+    "lahaula wala quwwata illa billah",
+    "lahaula wala quvvata",
+    "la hawla wala quwwata illa billah",
+    "لا حول ولا قوۃ الا باللہ"
   ]
 }

@@ -43,7 +43,7 @@ def is_template_sender(sender):
     return sender.strip() in SENDER_TEMPLATES
 
 
-def extract(sender, text):
+def extract(sender, text, ref_year=None):
     """Return [{'chant','count'}, ...] for a known template sender, or None.
 
     None means "shape did not match the template" — do not force it; let the
@@ -56,7 +56,7 @@ def extract(sender, text):
 
     if sender in SENDER_INFIX_LETTER_FIX:
         text = _INFIX_LETTER_RE.sub('0', text)
-    counts = reconcile.numbers_in(text)  # date/list-marker stripped
+    counts = reconcile.numbers_in(text, ref_year)  # date/list-marker stripped
     if len(counts) != len(template):
         return None  # shape mismatch -> not safe to apply positionally
 

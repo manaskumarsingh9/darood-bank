@@ -4,9 +4,9 @@
   "drop": ["e", "ye"],
 
   "tokens": {
-    "SURAH":   ["surah", "sura", "surh", "sure", "sur", "soorah", "सूरह", "सुरह", "सूराह", "سورہ", "سوره"],
+    "SURAH":   ["surah", "sura", "surh", "sure", "sureh", "surye", "surae", "suare", "suru", "suruh", "surya", "sur", "soorah", "सूरह", "सुरह", "सुरे", "सूराह", "سورہ", "سوره"],
     "SHARIF":  ["sharif", "shareef", "sharief", "sarif", "shrif", "शरीफ", "शरीफ़", "सरीफ", "شریف"],
-    "DAROOD":  ["darood", "durood", "darud", "durud", "duood", "drood", "daroid", "darooth", "daroud", "दरूद", "दरुद", "दुरूद", "درود"],
+    "DAROOD":  ["darood", "durood", "darud", "durud", "durod", "durrod", "duood", "drood", "daroid", "darooth", "daroud", "दरूद", "दरुद", "दारूद", "दुरूद", "درود"],
     "TAJ":     ["taj", "ताज", "تاج"],
     "IBRAHIM": ["ibrahim", "ibraheem", "इब्राहीम", "ابراہیم"],
     "MAHI":    ["mahi", "माही", "ماہی"],
@@ -15,10 +15,10 @@
     "MANTRA":  ["mantra", "mantar", "मंत्र", "मन्त्र", "منتر"],
     "GAYATRI": ["gayatri", "gaytri", "गायत्री", "گایتری"],
     "GURU":    ["guru", "गुरु"],
-    "IKHLAS":  ["ikhlas", "iklas", "ekhlas", "ekhlash", "iklaas", "iklhas", "ikhlalas", "इखलास", "इकलाख", "इकलास", "اخلاص"],
-    "FATIHA":  ["fatiha", "fateha", "fatiya", "fahtiya", "फातिया", "फातिहा", "فاتحہ"],
-    "KAUSER":  ["kauser", "kausar", "koshar", "kausr", "कौसर", "کوثر"],
-    "NAAS":    ["naas", "nas", "nash", "नास", "ناس"],
+    "IKHLAS":  ["ikhlas", "iklas", "ekhlas", "ekhlash", "ikhlash", "ikhlaas", "ikhalas", "iklaas", "iklhas", "ikhlalas", "इखलास", "इकलाख", "इकलास", "اخلاص"],
+    "FATIHA":  ["fatiha", "fateha", "fatiya", "fahtiya", "fhatiha", "fhatiya", "फातिया", "फातिहा", "فاتحہ"],
+    "KAUSER":  ["kauser", "kausar", "koshar", "kaushar", "kuosar", "kosar", "koshr", "kausr", "कौसर", "कौशर", "کوثر"],
+    "NAAS":    ["naas", "nas", "nash", "नास", "नाश", "ناس"],
     "MUJAMMIL":["mujammil", "muzammil", "mujjamil", "मुजम्मिल", "مزمل"],
     "JUMA":    ["juma", "jumma", "जुमा", "جمعہ"],
     "FALAK":   ["falak", "falaq", "फलक", "فلق"],
@@ -26,7 +26,17 @@
     "RAHMAN":  ["rahman", "रहमान", "رحمن"],
     "FAJR":    ["fajr", "फज्र", "فجر"],
     "KAHF":    ["kahf", "kahaf", "कहफ", "کہف"],
-    "BAKR":    ["bakr", "baqr", "बकर", "بقرہ"]
+    "BAKR":    ["bakr", "baqr", "बकर", "بقرہ"],
+    "KAFIROON":["kaffiroon", "kafiroon", "kaafiroon", "kafirun", "काफिरून", "काफिरूंन", "کافرون"],
+    "LAHAULA": ["lahaula", "lahola", "lahawla", "lahoula", "laahaula", "lahaulaa", "لاحول"],
+    "WALA":    ["wala", "walaa", "wla"],
+    "KUWWATA": ["kuwwata", "kuvvata", "kuwata", "quvvata", "quwwata", "kuwwat",
+                "walakuwata", "walakuwwata", "قوۃ"],
+    "ILLA":    ["illa", "ila"],
+    "BILLA":   ["billa", "billah", "bilaa", "باللہ"],
+    "HIL":     ["hil", "hill"],
+    "ALIYIL":  ["alliyil", "aliyil", "alliyal", "aleeyil"],
+    "AZEEM":   ["azeem", "azim", "azeen"]
   },
 
   "chants": {
@@ -49,6 +59,8 @@
     "Surah Rahman":   "SURAH? RAHMAN SHARIF?",
     "Surah Fajr":     "SURAH? FAJR SHARIF?",
     "Sur e Kahf":     "SURAH? KAHF SHARIF?",
-    "Surah Bakr":     "SURAH? BAKR SHARIF?"
+    "Surah Bakr":     "SURAH? BAKR SHARIF?",
+    "surah kaaffiroon": "SURAH? KAFIROON SHARIF?",
+    "Lahaula Wala Quvvata": "LAHAULA WALA? KUWWATA? ILLA? BILLA? HIL? ALIYIL? AZEEM?"
   }
 }

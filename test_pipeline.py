@@ -11,6 +11,7 @@ import tempfile
 
 import classify_verify as cv   # legacy backbone (no longer in the workflow; still tested)
 import pair
+import reconcile
 import normalize
 import compose
 import resolve
@@ -702,6 +703,55 @@ def test_split_weeks_output_reparses_through_split_blocks():
         assert len(msgs) == 3, msgs
         assert [m["sender"] for m in msgs] == ["Alice", "Bob", "Carol"]
         assert msgs[0]["envelope_date"] == "08/04/2026"
+
+
+# ------------------------------------------------- date-triple detection ----
+# A date is three numbers with nothing but punctuation/whitespace between them
+# whose VALUES are simultaneously plausible as day/month/year. The separator is
+# irrelevant -- that is the whole point, since enumerating separator spellings is
+# what let "9, 4 26" through as three phantom counts.
+
+def test_date_triple_any_separator_is_stripped():
+    for text in ["9, 4 26 durood sharif 100 martba",     # punctuation then space
+                 "9 4 26 durood sharif 100 martba",      # both spaces
+                 "9.4.26 durood sharif 100 martba",      # both dots
+                 "9-4-2026 durood sharif 100 martba"]:   # dashes, full year
+        assert reconcile.numbers_in(text, 2026) == [100], text
+
+
+def test_date_triple_kept_when_month_impossible():
+    # 13 cannot be a month, so this is NOT a date and the numbers stay as counts.
+    assert reconcile.numbers_in("surah ikhlas 11 13 26", 2026) == [11, 13, 26]
+
+
+def test_date_triple_kept_when_day_impossible():
+    assert reconcile.numbers_in("durood 41 4 26 kalma", 2026) == [41, 4, 26]
+
+
+def test_date_triple_needs_bare_numbers_not_counts():
+    # Words between the numbers mean these are counts, never a date.
+    assert reconcile.numbers_in("1000 martaba durood 300 martaba kalma", 2026) \
+        == [1000, 300]
+
+
+def test_date_triple_year_is_anchored_to_send_year_not_wall_clock():
+    """The reference year comes from the message's own envelope date, so the
+    same input file resolves identically no matter what year it is re-run in."""
+    text = "9, 4 26 durood sharif 100 martba"
+    assert reconcile.numbers_in(text, 2026) == [100]        # sent 2026 -> a date
+    assert reconcile.numbers_in(text, 2027) == [100]        # sent 2027 -> last year
+    assert reconcile.numbers_in(text, 2029) == [9, 4, 26, 100]  # implausible -> counts
+
+
+def test_date_triple_accepts_previous_year_at_boundary():
+    # A message posted early in 2027 reporting a late-2026 date.
+    assert reconcile.numbers_in("28 12 26 durood 500", 2027) == [500]
+
+
+def test_year_of_reads_envelope_date():
+    assert reconcile.year_of("01/04/2026") == 2026
+    assert reconcile.year_of("24/02") == 2026     # 2-part blocks form
+    assert reconcile.year_of("") is None
 
 
 # --------------------------------------------------------------- runner ----

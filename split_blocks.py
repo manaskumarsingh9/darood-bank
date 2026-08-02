@@ -70,11 +70,44 @@ def parse_message_header(line):
     return date, sender, text
 
 
+def is_system_notice(line):
+    """True for a WhatsApp system line: a valid `date, time -` envelope with no
+    `sender:` after it ("Your security code with X changed", "X added Y",
+    "X changed their phone number", the e2e-encryption banner).
+
+    These must end the current message rather than fold into it. Left as a
+    continuation they weld the notice onto the previous sender's text, and the
+    notice's clock time ("9:49 am") then segments as two stray numbers that
+    break the alternation pairing for a message that was otherwise fine.
+    """
+    if parse_message_header(line) is not None:
+        return False
+    return _ENVELOPE_ONLY.match(line.strip()) is not None
+
+
+_ENVELOPE_ONLY = re.compile(
+    r'^\[?\s*'
+    r'(?:'
+    r'\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?,\s*\d{1,2}:\d{2}(?::\d{2})?\s*[ap]\.?m\.?'
+    r'|'
+    r'\d{1,2}:\d{2}(?::\d{2})?\s*[ap]\.?m\.?,\s*\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?'
+    r')'
+    r'\]?\s*(?:-\s*)?\S',
+    re.IGNORECASE,
+)
+
+
 def split_messages(lines):
     messages = []
     current = None
     for raw in lines:
         line = raw.rstrip("\n")
+        if is_system_notice(line):
+            # ends the current message; the notice itself is not data
+            if current is not None:
+                messages.append(current)
+                current = None
+            continue
         header = parse_message_header(line)
         if header:
             if current is not None:

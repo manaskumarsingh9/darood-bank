@@ -208,7 +208,34 @@ Sur e Kahf, Kul wallahu ahad, Shukra Alhamdulillah,
 Guru bramha Guru Vishnu, Dhyan mulam,
 Duwaye Kunut, Maja Mrityunjay mantra, Surah Fajr, Dua e Noor,
 Darood Mahi, Surah Yaseen, Raksha Strota, Aman Rasul,
-kul sharif, Surah atah takasur, Surah Alif Laam
+kul sharif, Surah atah takasur, Surah Alif Laam,
+Subhanallah, Alhamdulillah, Allah Hu Akbar, Lahaula Wala Quvvata
+
+**Do not conflate the Third-Kalima dhikr with Surah names.** `Subhanallah`
+(Tasbeeh), `Alhamdulillah` (Tahmeed), `Allah Hu Akbar` (Takbeer) and
+`Lahaula Wala Quvvata` are short dhikr phrases, **each its own canonical**.
+Three separate rulings apply here:
+- `Alhamdu Shareef` is an alternate name for **Surah Fatiha** (a 7-verse Quranic
+  chapter) and is NOT the dhikr `Alhamdulillah` — mapping one to the other
+  miscounts a surah as a one-line dhikr.
+- `Alhamdulillah` (the dhikr) is also **NOT** `Shukra Alhamdulillah`. It gets its
+  own column; do not fold it into either.
+- `Alhamdu Shareef` and `SURAH FATIHA` remain separate spreadsheet columns even
+  though they denote the same surah. Never silently merge master-spreadsheet
+  columns.
+
+**The master spreadsheet is the authority on columns — never merge two of them.**
+This is settled, not an open question. Several canonicals denote the same
+recitation under different names and they all stay separate: `Alhamdu Shareef` /
+`SURAH FATIHA`, and `SURAH IKHLAS` / `Kulho wallah Sharif` (*Qul huwa Allah*) /
+`Kul wallahu ahad` (*Qul huwa Allahu ahad*). If you notice counts spreading across
+such columns, that is an **observation to report**, not a decision to re-open.
+
+**`kul sharif` stays as an empty column.** It is the **Four Quls** set (Kafirun,
+Ikhlas, Falaq, Nas) and has no mappings and zero counts. Keep it in `CHANT_ORDER`.
+If it ever appears in a real message there is a genuine ambiguity — does
+`kul sharif 100` mean 100 of the set, or 100 of each of the four? **Stop and ask
+the user. Never resolve that silently.**
 
 ### Known mappings (extend as you see new variants)
 - `Darud, Durood, Duood, दरूद, दरुद, दरूद शरीफ, durood/darud/daroid sharif` → **DAROOD**
@@ -242,6 +269,69 @@ model judgment involved. Corrections are scoped to one sender, NOT general rules
 - To add a new template sender, add its ordered chant list to `SENDER_TEMPLATES`
   (and any scoped fix to `SENDER_COUNT_FIX`). If a message doesn't match the
   template shape, the sender falls through to the normal resolver / review.
+
+## How body dates are told apart from counts
+
+Segmentation anchors on numbers, so an unrecognised body date becomes phantom
+counts (`9, 4 26 sonway sharif...` → three fake counts of 9, 4 and 26). Dates are
+therefore stripped before segmenting — and stripping loses nothing, because the
+record date is always `envelope_date` and body dates never become the record date.
+
+Detection is **value-based, not separator-based** (`reconcile.strip_date_triples`).
+Do not add another separator regex; extend this rule instead. Three numbers with
+nothing but punctuation/whitespace between them (never a word) are a date when
+**all** hold, the way a reader judges it:
+
+- first ≤ 31  → could be a day
+- second ≤ 12 → could be a month
+- third is a plausible year → 4-digit `20xx`, or 2-digit read as `20xx`
+
+It is self-guarding: `11 13 26` keeps its numbers as counts because 13 is not a
+month, and `1000 martaba durood 300` can never match because words sit between.
+
+**The plausible year is anchored to the message's own `envelope_date`** — the send
+year or the one before it (a message posted early in a year often reports the tail
+of the previous one). It is deliberately **never** taken from the wall clock:
+a clock-based rule would make the same input file resolve differently when re-run
+in a later year, breaking the pipeline's reproducibility guarantee. `ref_year` is
+threaded from the record through `segment.atoms`, `reconcile.numbers_in` and
+`sender_templates.extract`; `segment._strip_dates` and `reconcile.numbers_in` must
+strip identically or the per-date multiset gate compares two different number sets.
+
+## Resolving a typo'd count (evidence, then a recorded decision)
+
+Some messages have a typo in the DIGITS, which no spelling store can fix: a count
+split by a stray space (`Sure iklas 9 1 martba`), or a spurious extra number
+(`11000 11 मर्तबा दरूद शरीफ`). Writing deterministic code to *guess* the intent is
+not possible. What IS possible is to make the judgement against evidence, once,
+and then freeze it. Never eyeball the single message and pick a number.
+
+1. **Get the evidence.** `python count_profile.py blocks.jsonl --sender "<sender>"`
+   (add `--name "<person>"` for senders who report on behalf of many people, and
+   `--chant "<canonical>"` to narrow). It prints that person's whole history for
+   each chant: distinct values, min/max, and a digit-length histogram.
+2. **Read the candidate against the distribution.** A person whose Darood counts
+   are 4-digit in all 27 reports did not send `11`; the intended figure is `11000`.
+   A sender whose Ikhlas counts are all 2-3 digit — and who wrote `Sure ikhlas 91`
+   three weeks earlier — meant `91`, not `9` and `1`.
+3. **Record the decision with its evidence** in `text_corrections.json`
+   (`sender` + `envelope_date` + exact `text` -> `corrected_text` + `reason`). Cite
+   the profile in the reason. It is deterministic from then on, applied by BOTH
+   `build_extracted.py` and `reconcile.py` so the two gates see identical digits,
+   and logged as `[INFO] text-correction` for audit.
+4. **If the profile does not settle it, leave it flagged and ask.** An evenly
+   spread distribution is not evidence. Never invent a count.
+
+### The three exception stores (keep each small; all keyed by sender+date+exact text)
+- `known_duplicates.json` — a real report already counted via another message
+  (incomplete send superseded by a full resend; a bare count reiterating the
+  previous message). Excluded, logged `[INFO] known-duplicate`.
+- `non_chant_messages.json` — a message that reports nothing at all: group admin
+  chatter ("please add this no." + a phone number), link shares, greetings-only.
+  Its digits are not counts. Excluded, logged `[INFO] non-chant`.
+- `text_corrections.json` — a confirmed digit typo, per the procedure above.
+
+These are exception lists, never a way to make an inconvenient flag disappear.
 
 ## Notes
 - `chant_mappings.json` (full-phrase variants) and `compose_rules.json` (word-class

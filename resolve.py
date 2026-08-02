@@ -111,8 +111,9 @@ def classify(phrase, decisions):
 def resolve_message(rec, decisions):
     """Return (entries, flag, dropped_phrases)."""
     date = reconcile.norm_date(rec.get("envelope_date", ""))
+    ref_year = reconcile.year_of(rec.get("envelope_date", ""))
     stream, dropped = [], []
-    for a in segment.atoms(rec.get("text", "")):
+    for a in segment.atoms(rec.get("text", ""), ref_year):
         if a["kind"] == "num":
             stream.append(("N", a["value"]))
         else:
@@ -123,11 +124,35 @@ def resolve_message(rec, decisions):
                 dropped.append(a["text"])
     pairs, err = pair.pair_stream(stream)
     if err:
+        rescued = _drop_uncounted_trailing_label(stream)
+        if rescued is not None:
+            pairs, err = rescued, None
+    if err:
         pairs = _carry_forward(stream)   # header-chant fallback
         if pairs is None:
             return [], err, dropped
     entries = [{"date": date, "chant": c, "count": n} for c, n in pairs]
     return entries, None, dropped
+
+
+def _drop_uncounted_trailing_label(stream):
+    """Rescue a message whose ONLY defect is a chant named last with no count.
+
+    Senders sometimes trail off: "...Surye iklhas 75 martba toba astagfirullah"
+    -- the final chant is named but its count was never typed. That lone label
+    breaks the alternation and would discard the message's other three counts,
+    which are perfectly good.
+
+    Dropping the label loses NO number (there was none to lose) and cannot invent
+    one, so it is safe in a way that guessing a count would not be. Deliberately
+    narrow: it fires only when the LAST item is a label and removing exactly that
+    one item makes the whole remaining stream pair cleanly. Anything else -- a
+    dangling count, a label stranded mid-message -- still flags for a human.
+    """
+    if len(stream) < 2 or stream[-1][0] != "L":
+        return None
+    pairs, err = pair.pair_stream(stream[:-1])
+    return None if err else pairs
 
 
 def _carry_forward(stream):
